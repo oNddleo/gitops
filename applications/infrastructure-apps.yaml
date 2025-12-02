@@ -27,7 +27,7 @@ metadata:
 spec:
   project: infrastructure
   source:
-    repoURL: https://github.com/YOUR_ORG/gitops-platform.git  # UPDATE THIS
+    repoURL: https://github.com/oNddleo/gitops.git  # UPDATE THIS
     targetRevision: HEAD
     path: infrastructure/secrets-store-csi
   destination:
@@ -56,7 +56,7 @@ metadata:
 spec:
   project: infrastructure
   source:
-    repoURL: https://github.com/YOUR_ORG/gitops-platform.git  # UPDATE THIS
+    repoURL: https://github.com/oNddleo/gitops.git  # UPDATE THIS
     targetRevision: HEAD
     path: infrastructure/traefik
   destination:
@@ -85,7 +85,7 @@ metadata:
 spec:
   project: infrastructure
   source:
-    repoURL: https://github.com/YOUR_ORG/gitops-platform.git  # UPDATE THIS
+    repoURL: https://github.com/oNddleo/gitops.git  # UPDATE THIS
     targetRevision: HEAD
     path: infrastructure/linkerd
   destination:
@@ -114,7 +114,7 @@ metadata:
 spec:
   project: infrastructure
   source:
-    repoURL: https://github.com/YOUR_ORG/gitops-platform.git  # UPDATE THIS
+    repoURL: https://github.com/oNddleo/gitops.git  # UPDATE THIS
     targetRevision: HEAD
     path: infrastructure/reloader
   destination:
@@ -143,7 +143,7 @@ metadata:
 spec:
   project: infrastructure
   source:
-    repoURL: https://github.com/YOUR_ORG/gitops-platform.git  # UPDATE THIS
+    repoURL: https://github.com/oNddleo/gitops.git  # UPDATE THIS
     targetRevision: HEAD
     path: infrastructure/argocd
   destination:
