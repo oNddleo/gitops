@@ -1,0 +1,58 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-server
+  namespace: argocd
+  labels:
+    app: argocd-server
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`argocd.example.com`)  # UPDATE THIS
+      kind: Rule
+      priority: 10
+      services:
+        - name: argocd-server
+          port: 443
+      middlewares:
+        - name: argocd-headers
+  tls:
+    secretName: argocd-server-tls
+---
+# HTTP to HTTPS redirect
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: argocd-server-http
+  namespace: argocd
+  labels:
+    app: argocd-server
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`argocd.example.com`)  # UPDATE THIS
+      kind: Rule
+      services:
+        - name: argocd-server
+          port: 80
+      middlewares:
+        - name: https-redirect
+          namespace: traefik
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: argocd-headers
+  namespace: argocd
+spec:
+  headers:
+    sslRedirect: true
+    browserXssFilter: true
+    contentTypeNosniff: true
+    forceSTSHeader: true
+    stsIncludeSubdomains: true
+    stsPreload: true
+    stsSeconds: 31536000
+    customFrameOptionsValue: SAMEORIGIN

@@ -1,0 +1,129 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: traefik
+
+helmCharts:
+  - name: traefik
+    repo: https://traefik.github.io/charts
+    version: 26.0.0
+    releaseName: traefik
+    namespace: traefik
+    valuesInline:
+      # Deployment configuration
+      deployment:
+        enabled: true
+        kind: Deployment
+        replicas: 3
+        podAnnotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "9100"
+
+      # Service configuration
+      service:
+        enabled: true
+        type: LoadBalancer
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+          service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+          service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "tcp"
+
+      # Ports configuration
+      ports:
+        web:
+          port: 80
+          exposedPort: 80
+          protocol: TCP
+        websecure:
+          port: 443
+          exposedPort: 443
+          protocol: TCP
+          tls:
+            enabled: true
+        metrics:
+          port: 9100
+          expose: true
+          exposedPort: 9100
+          protocol: TCP
+
+      # Enable the dashboard
+      ingressRoute:
+        dashboard:
+          enabled: false  # We'll create a custom IngressRoute with auth
+
+      # Enable access logs
+      logs:
+        general:
+          level: INFO
+        access:
+          enabled: true
+          format: json
+
+      # Enable metrics
+      metrics:
+        prometheus:
+          enabled: true
+          entryPoint: metrics
+          addEntryPointsLabels: true
+          addRoutersLabels: true
+          addServicesLabels: true
+
+      # Additional arguments
+      additionalArguments:
+        - "--api.dashboard=true"
+        - "--api.insecure=false"
+        - "--ping=true"
+        - "--providers.kubernetescrd.allowCrossNamespace=true"
+        - "--providers.kubernetescrd.allowExternalNameServices=true"
+        - "--serversTransport.insecureSkipVerify=true"
+
+      # Global arguments
+      globalArguments:
+        - "--global.checknewversion"
+
+      # Resources
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+      # Security context
+      securityContext:
+        capabilities:
+          drop: [ALL]
+          add: [NET_BIND_SERVICE]
+        readOnlyRootFilesystem: true
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+
+      # Pod security context
+      podSecurityContext:
+        fsGroup: 65532
+
+      # Autoscaling
+      autoscaling:
+        enabled: true
+        minReplicas: 3
+        maxReplicas: 10
+        metrics:
+          - type: Resource
+            resource:
+              name: cpu
+              target:
+                type: Utilization
+                averageUtilization: 80
+
+      # Service account
+      serviceAccount:
+        create: true
+        name: traefik
+
+resources:
+  - dashboard-ingressroute.yaml
+  - dashboard-middleware.yaml
+  - default-headers-middleware.yaml
+  - rate-limit-middleware.yaml

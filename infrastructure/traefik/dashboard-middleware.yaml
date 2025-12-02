@@ -1,0 +1,55 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: dashboard-auth
+  namespace: traefik
+  labels:
+    app: traefik
+spec:
+  basicAuth:
+    secret: traefik-dashboard-auth
+    removeHeader: true
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: traefik-dashboard-auth
+  namespace: traefik
+  labels:
+    app: traefik
+type: Opaque
+stringData:
+  # Default credentials: admin / changeme
+  # Generated using: htpasswd -nb admin changeme
+  # IMPORTANT: Change these credentials in production!
+  users: |
+    admin:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: dashboard-ipwhitelist
+  namespace: traefik
+  labels:
+    app: traefik
+spec:
+  ipWhiteList:
+    sourceRange:
+      - 10.0.0.0/8      # Private network
+      - 172.16.0.0/12   # Private network
+      - 192.168.0.0/16  # Private network
+      # - YOUR_OFFICE_IP/32  # Add your office IP
+    ipStrategy:
+      depth: 1
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: https-redirect
+  namespace: traefik
+  labels:
+    app: traefik
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true

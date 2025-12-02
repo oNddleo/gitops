@@ -1,0 +1,62 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "my-microservice.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "my-microservice.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  entryPoints:
+    {{- if .Values.ingress.tls.enabled }}
+    - websecure
+    {{- else }}
+    - web
+    {{- end }}
+  routes:
+    {{- range .Values.ingress.hosts }}
+    - match: Host(`{{ .host }}`){{ range .paths }} && PathPrefix(`{{ .path }}`){{ end }}
+      kind: Rule
+      services:
+        - name: {{ include "my-microservice.fullname" $ }}
+          port: {{ $.Values.service.port }}
+      middlewares:
+        - name: default-headers
+          namespace: traefik
+        - name: rate-limit
+          namespace: traefik
+    {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+---
+# HTTP to HTTPS redirect
+{{- if .Values.ingress.tls.enabled }}
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "my-microservice.fullname" . }}-redirect
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "my-microservice.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+  routes:
+    {{- range .Values.ingress.hosts }}
+    - match: Host(`{{ .host }}`)
+      kind: Rule
+      services:
+        - name: {{ include "my-microservice.fullname" $ }}
+          port: {{ $.Values.service.port }}
+      middlewares:
+        - name: https-redirect
+          namespace: traefik
+    {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,55 @@
+# Linkerd requires trust anchor and issuer certificates
+# These should be generated using the linkerd CLI or cert-manager
+
+# Generate certificates using:
+# step certificate create root.linkerd.cluster.local ca.crt ca.key \
+#   --profile root-ca --no-password --insecure --not-after=87600h
+#
+# step certificate create identity.linkerd.cluster.local issuer.crt issuer.key \
+#   --profile intermediate-ca --not-after=8760h --no-password --insecure \
+#   --ca ca.crt --ca-key ca.key
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: linkerd-trust-anchor
+  namespace: linkerd
+  labels:
+    linkerd.io/control-plane-component: identity
+type: Opaque
+stringData:
+  # Replace with your actual trust anchor certificate
+  # Generated using: step certificate create root.linkerd.cluster.local ca.crt ca.key
+  tls.crt: |
+    -----BEGIN CERTIFICATE-----
+    # REPLACE WITH YOUR TRUST ANCHOR CERTIFICATE
+    # This is a placeholder - generate real certificates before deployment
+    -----END CERTIFICATE-----
+  tls.key: |
+    -----BEGIN EC PRIVATE KEY-----
+    # REPLACE WITH YOUR TRUST ANCHOR PRIVATE KEY
+    # This is a placeholder - generate real certificates before deployment
+    -----END EC PRIVATE KEY-----
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: linkerd-identity-issuer
+  namespace: linkerd
+  labels:
+    linkerd.io/control-plane-component: identity
+type: kubernetes.io/tls
+stringData:
+  # Replace with your actual issuer certificate
+  # Generated using: step certificate create identity.linkerd.cluster.local issuer.crt issuer.key
+  tls.crt: |
+    -----BEGIN CERTIFICATE-----
+    # REPLACE WITH YOUR ISSUER CERTIFICATE
+    # This is a placeholder - generate real certificates before deployment
+    -----END CERTIFICATE-----
+  tls.key: |
+    -----BEGIN EC PRIVATE KEY-----
+    # REPLACE WITH YOUR ISSUER PRIVATE KEY
+    # This is a placeholder - generate real certificates before deployment
+    -----END EC PRIVATE KEY-----

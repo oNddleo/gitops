@@ -1,0 +1,225 @@
+# This file contains the AWS resources needed for Vault HA setup
+# Deploy these using Terraform or CloudFormation
+
+# DynamoDB Table for Vault Storage
+# aws dynamodb create-table \
+#   --table-name vault-data \
+#   --attribute-definitions AttributeName=Path,AttributeType=S AttributeName=Key,AttributeType=S \
+#   --key-schema AttributeName=Path,KeyType=HASH AttributeName=Key,KeyType=RANGE \
+#   --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
+#   --region us-east-1
+
+# S3 Bucket for Vault Snapshots (optional)
+# aws s3 mb s3://vault-snapshots-ACCOUNT_ID --region us-east-1
+
+# KMS Key for Auto-Unseal
+# aws kms create-key \
+#   --description "Vault Auto-Unseal Key" \
+#   --region us-east-1
+
+# IAM Role for Vault with IRSA
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-aws-setup
+  namespace: vault
+data:
+  terraform.tf: |
+    terraform {
+      required_providers {
+        aws = {
+          source  = "hashicorp/aws"
+          version = "~> 5.0"
+        }
+      }
+    }
+
+    provider "aws" {
+      region = var.aws_region
+    }
+
+    variable "aws_region" {
+      default = "us-east-1"
+    }
+
+    variable "cluster_name" {
+      default = "gitops-eks-cluster"
+    }
+
+    # DynamoDB Table for Vault
+    resource "aws_dynamodb_table" "vault" {
+      name           = "vault-data"
+      billing_mode   = "PROVISIONED"
+      read_capacity  = 5
+      write_capacity = 5
+      hash_key       = "Path"
+      range_key      = "Key"
+
+      attribute {
+        name = "Path"
+        type = "S"
+      }
+
+      attribute {
+        name = "Key"
+        type = "S"
+      }
+
+      tags = {
+        Name        = "vault-data"
+        Environment = "production"
+        ManagedBy   = "terraform"
+      }
+    }
+
+    # S3 Bucket for Vault Snapshots
+    resource "aws_s3_bucket" "vault_snapshots" {
+      bucket = "vault-snapshots-${data.aws_caller_identity.current.account_id}"
+
+      tags = {
+        Name        = "vault-snapshots"
+        Environment = "production"
+        ManagedBy   = "terraform"
+      }
+    }
+
+    resource "aws_s3_bucket_versioning" "vault_snapshots" {
+      bucket = aws_s3_bucket.vault_snapshots.id
+
+      versioning_configuration {
+        status = "Enabled"
+      }
+    }
+
+    resource "aws_s3_bucket_server_side_encryption_configuration" "vault_snapshots" {
+      bucket = aws_s3_bucket.vault_snapshots.id
+
+      rule {
+        apply_server_side_encryption_by_default {
+          sse_algorithm = "AES256"
+        }
+      }
+    }
+
+    # KMS Key for Auto-Unseal
+    resource "aws_kms_key" "vault" {
+      description             = "Vault Auto-Unseal Key"
+      deletion_window_in_days = 10
+      enable_key_rotation     = true
+
+      tags = {
+        Name        = "vault-unseal-key"
+        Environment = "production"
+        ManagedBy   = "terraform"
+      }
+    }
+
+    resource "aws_kms_alias" "vault" {
+      name          = "alias/vault-unseal"
+      target_key_id = aws_kms_key.vault.key_id
+    }
+
+    # IAM Role for Vault with IRSA
+    data "aws_caller_identity" "current" {}
+
+    data "aws_eks_cluster" "cluster" {
+      name = var.cluster_name
+    }
+
+    data "aws_iam_openid_connect_provider" "eks" {
+      url = data.aws_eks_cluster.cluster.identity[0].oidc[0].issuer
+    }
+
+    resource "aws_iam_role" "vault" {
+      name = "vault-role"
+
+      assume_role_policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Principal = {
+              Federated = data.aws_iam_openid_connect_provider.eks.arn
+            }
+            Action = "sts:AssumeRoleWithWebIdentity"
+            Condition = {
+              StringEquals = {
+                "${replace(data.aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub" = "system:serviceaccount:vault:vault"
+              }
+            }
+          }
+        ]
+      })
+    }
+
+    resource "aws_iam_role_policy" "vault" {
+      name = "vault-policy"
+      role = aws_iam_role.vault.id
+
+      policy = jsonencode({
+        Version = "2012-10-17"
+        Statement = [
+          {
+            Effect = "Allow"
+            Action = [
+              "dynamodb:DescribeLimits",
+              "dynamodb:DescribeTimeToLive",
+              "dynamodb:ListTagsOfResource",
+              "dynamodb:DescribeReservedCapacityOfferings",
+              "dynamodb:DescribeReservedCapacity",
+              "dynamodb:ListTables",
+              "dynamodb:BatchGetItem",
+              "dynamodb:BatchWriteItem",
+              "dynamodb:CreateTable",
+              "dynamodb:DeleteItem",
+              "dynamodb:GetItem",
+              "dynamodb:GetRecords",
+              "dynamodb:PutItem",
+              "dynamodb:Query",
+              "dynamodb:UpdateItem",
+              "dynamodb:Scan",
+              "dynamodb:DescribeTable"
+            ]
+            Resource = aws_dynamodb_table.vault.arn
+          },
+          {
+            Effect = "Allow"
+            Action = [
+              "kms:Encrypt",
+              "kms:Decrypt",
+              "kms:DescribeKey"
+            ]
+            Resource = aws_kms_key.vault.arn
+          },
+          {
+            Effect = "Allow"
+            Action = [
+              "s3:PutObject",
+              "s3:GetObject",
+              "s3:ListBucket"
+            ]
+            Resource = [
+              aws_s3_bucket.vault_snapshots.arn,
+              "${aws_s3_bucket.vault_snapshots.arn}/*"
+            ]
+          }
+        ]
+      })
+    }
+
+    output "vault_role_arn" {
+      value = aws_iam_role.vault.arn
+    }
+
+    output "kms_key_id" {
+      value = aws_kms_key.vault.key_id
+    }
+
+    output "dynamodb_table" {
+      value = aws_dynamodb_table.vault.name
+    }
+
+    output "s3_bucket" {
+      value = aws_s3_bucket.vault_snapshots.id
+    }

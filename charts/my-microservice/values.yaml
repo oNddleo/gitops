@@ -1,0 +1,200 @@
+# Default values for my-microservice
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Replica count
+replicaCount: 3
+
+# Image configuration
+image:
+  repository: YOUR_ECR_REGISTRY/my-microservice  # UPDATE THIS
+  pullPolicy: IfNotPresent
+  tag: "latest"  # Overridden by CI/CD
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod annotations
+podAnnotations:
+  # Enable Linkerd sidecar injection
+  linkerd.io/inject: enabled
+  # Enable Reloader for ConfigMap/Secret changes
+  reloader.stakater.com/auto: "true"
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+# Ingress configuration using Traefik IngressRoute
+ingress:
+  enabled: true
+  className: traefik
+  annotations: {}
+  hosts:
+    - host: myapp.example.com  # UPDATE THIS
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: myapp-tls
+
+# Resources
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Autoscaling
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Liveness and readiness probes
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity - pod anti-affinity for HA
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - my-microservice
+          topologyKey: kubernetes.io/hostname
+
+# Environment variables
+env:
+  - name: APP_NAME
+    value: "my-microservice"
+  - name: APP_VERSION
+    value: "1.0.0"
+  - name: LOG_LEVEL
+    value: "info"
+  - name: PORT
+    value: "8080"
+
+# Environment variables from ConfigMap
+envFrom:
+  - configMapRef:
+      name: my-microservice-config
+  - secretRef:
+      name: my-microservice-secrets
+
+# ConfigMap data
+configMap:
+  enabled: true
+  data:
+    app.properties: |
+      app.name=my-microservice
+      app.environment=production
+      feature.flag.enabled=true
+
+# External Secrets
+externalSecrets:
+  enabled: true
+  secretStore:
+    name: vault-backend
+    kind: SecretStore
+  refreshInterval: 1h
+  data:
+    - secretKey: database-url
+      remoteRef:
+        key: secret/production/myapp/database
+        property: url
+    - secretKey: api-key
+      remoteRef:
+        key: secret/production/myapp/api
+        property: key
+
+# Persistent Volume
+persistence:
+  enabled: false
+  storageClass: "gp3"
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  mountPath: /data
+
+# Service mesh configuration
+serviceMesh:
+  enabled: true
+  mTLS: true
+
+# Monitoring
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+    port: metrics
+
+# Additional volumes
+volumes: []
+
+# Additional volume mounts
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+  - name: cache
+    mountPath: /app/cache

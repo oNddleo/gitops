@@ -1,0 +1,130 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: vault
+
+helmCharts:
+  - name: vault
+    repo: https://helm.releases.hashicorp.com
+    version: 0.28.0
+    releaseName: vault
+    namespace: vault
+    valuesInline:
+      global:
+        enabled: true
+        tlsDisable: false
+
+      injector:
+        enabled: true
+        replicas: 2
+        metrics:
+          enabled: true
+        resources:
+          requests:
+            memory: 256Mi
+            cpu: 250m
+          limits:
+            memory: 512Mi
+            cpu: 500m
+
+      server:
+        enabled: true
+        image:
+          repository: hashicorp/vault
+          tag: 1.15.4
+
+        # High Availability mode
+        ha:
+          enabled: true
+          replicas: 3
+          raft:
+            enabled: false  # Using DynamoDB instead
+
+          # Configure DynamoDB backend
+          config: |
+            ui = true
+
+            listener "tcp" {
+              tls_disable = 0
+              address = "[::]:8200"
+              cluster_address = "[::]:8201"
+              tls_cert_file = "/vault/userconfig/vault-server-tls/tls.crt"
+              tls_key_file  = "/vault/userconfig/vault-server-tls/tls.key"
+            }
+
+            storage "dynamodb" {
+              ha_enabled = "true"
+              region     = "us-east-1"  # UPDATE THIS
+              table      = "vault-data"
+              read_capacity  = 5
+              write_capacity = 5
+            }
+
+            seal "awskms" {
+              region     = "us-east-1"  # UPDATE THIS
+              kms_key_id = "VAULT_KMS_KEY_ID"  # UPDATE THIS
+            }
+
+            service_registration "kubernetes" {}
+
+        # Service account with IRSA annotations
+        serviceAccount:
+          create: true
+          name: vault
+          annotations:
+            eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vault-role"  # UPDATE THIS
+
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 500m
+          limits:
+            memory: 2Gi
+            cpu: 1000m
+
+        # Enable audit logs
+        auditStorage:
+          enabled: true
+          size: 10Gi
+
+        # Expose as LoadBalancer
+        service:
+          enabled: true
+          type: LoadBalancer
+          port: 8200
+          targetPort: 8200
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+            service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+
+        # Ingress for UI
+        ingress:
+          enabled: false  # Will use Traefik IngressRoute instead
+
+        dataStorage:
+          enabled: true
+          size: 10Gi
+          storageClass: gp3
+
+        # Security context
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 100
+          fsGroup: 1000
+
+        # Probes
+        readinessProbe:
+          enabled: true
+          path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+
+        livenessProbe:
+          enabled: true
+          path: /v1/sys/health?standbyok=true
+
+      ui:
+        enabled: true
+        serviceType: ClusterIP
+
+resources:
+  - vault-init-job.yaml
+  - vault-ingress.yaml

@@ -1,0 +1,243 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'charts/**'
+      - 'applications/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches:
+      - main
+      - develop
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: my-microservice
+  HELM_VERSION: '3.14.0'
+
+jobs:
+  # Job 1: Lint and validate Helm charts
+  helm-lint:
+    name: Helm Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Lint Helm charts
+        run: |
+          for chart in charts/*; do
+            if [ -d "$chart" ]; then
+              echo "Linting $chart..."
+              helm lint $chart
+              helm lint $chart -f $chart/ci/production-values.yaml
+              helm lint $chart -f $chart/ci/staging-values.yaml
+              helm lint $chart -f $chart/ci/dev-values.yaml
+            fi
+          done
+
+      - name: Template Helm charts
+        run: |
+          for chart in charts/*; do
+            if [ -d "$chart" ]; then
+              echo "Templating $chart..."
+              helm template test-release $chart --namespace default
+            fi
+          done
+
+  # Job 2: Validate Kubernetes manifests
+  validate-manifests:
+    name: Validate Kubernetes Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kubeval
+        run: |
+          wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+          tar xf kubeval-linux-amd64.tar.gz
+          sudo mv kubeval /usr/local/bin
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Validate manifests with kubeval
+        run: |
+          for chart in charts/*; do
+            if [ -d "$chart" ]; then
+              echo "Validating $chart..."
+              helm template test-release $chart | kubeval --ignore-missing-schemas
+            fi
+          done
+
+  # Job 3: Build and push Docker image
+  build-and-push:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [helm-lint, validate-manifests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Job 4: Package and push Helm chart
+  package-helm-chart:
+    name: Package and Push Helm Chart
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Install Helm push plugin
+        run: |
+          helm plugin install https://github.com/chartmuseum/helm-push || true
+
+      - name: Package Helm chart
+        run: |
+          helm package charts/my-microservice --version ${{ needs.build-and-push.outputs.image-tag }}
+
+      - name: Push Helm chart to ECR
+        env:
+          HELM_EXPERIMENTAL_OCI: 1
+        run: |
+          helm push my-microservice-${{ needs.build-and-push.outputs.image-tag }}.tgz \
+            oci://${{ steps.login-ecr.outputs.registry }}
+
+  # Job 5: Update GitOps repository
+  update-gitops-repo:
+    name: Update GitOps Repository
+    runs-on: ubuntu-latest
+    needs: [build-and-push, package-helm-chart]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update production values
+        run: |
+          IMAGE_TAG="${{ needs.build-and-push.outputs.image-tag }}"
+
+          # Update image tag in production values
+          sed -i "s/tag: .*/tag: \"${IMAGE_TAG}\"/" \
+            charts/my-microservice/ci/production-values.yaml
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+          git add charts/my-microservice/ci/production-values.yaml
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update production image to ${{ needs.build-and-push.outputs.image-tag }}
+
+            Co-Authored-By: Claude <noreply@anthropic.com>"
+
+            git push
+          fi
+
+  # Job 6: Notify ArgoCD
+  notify-argocd:
+    name: Notify ArgoCD
+    runs-on: ubuntu-latest
+    needs: [update-gitops-repo]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Trigger ArgoCD sync
+        run: |
+          # Install ArgoCD CLI
+          curl -sSL -o argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x argocd
+          sudo mv argocd /usr/local/bin/
+
+          # Login to ArgoCD
+          argocd login ${{ secrets.ARGOCD_SERVER }} \
+            --username ${{ secrets.ARGOCD_USERNAME }} \
+            --password ${{ secrets.ARGOCD_PASSWORD }} \
+            --insecure
+
+          # Sync the application
+          argocd app sync my-microservice-production --prune
+
+          # Wait for sync to complete
+          argocd app wait my-microservice-production --health --timeout 300
+
+      - name: Get sync status
+        if: always()
+        run: |
+          argocd app get my-microservice-production

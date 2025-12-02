@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-microservice-staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    environment: staging
+    app: my-microservice
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/YOUR_ORG/gitops-platform.git  # UPDATE THIS
+    targetRevision: develop  # Use develop branch for staging
+    path: charts/my-microservice
+    helm:
+      valueFiles:
+        - ci/staging-values.yaml
+
+      values: |
+        replicaCount: 2
+
+        image:
+          repository: YOUR_ECR_REGISTRY/my-microservice  # UPDATE THIS
+          tag: "latest"  # Updated by CI/CD
+
+        ingress:
+          enabled: true
+          hosts:
+            - host: myapp-staging.example.com  # UPDATE THIS
+              paths:
+                - path: /
+                  pathType: Prefix
+
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+
+  info:
+    - name: 'Environment'
+      value: 'Staging'
+    - name: 'Owner'
+      value: 'Platform Team'
+    - name: 'Slack Channel'
+      value: '#staging-alerts'

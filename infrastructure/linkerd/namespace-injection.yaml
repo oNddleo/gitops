@@ -1,0 +1,32 @@
+# Example namespaces with Linkerd injection enabled
+# Add the annotation linkerd.io/inject: enabled to auto-inject the proxy
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    name: production
+    environment: production
+  annotations:
+    linkerd.io/inject: enabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: staging
+  labels:
+    name: staging
+    environment: staging
+  annotations:
+    linkerd.io/inject: enabled
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: development
+  labels:
+    name: development
+    environment: development
+  annotations:
+    linkerd.io/inject: enabled

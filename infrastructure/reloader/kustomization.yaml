@@ -1,0 +1,75 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: reloader
+
+helmCharts:
+  - name: reloader
+    repo: https://stakater.github.io/stakater-charts
+    version: 1.0.79
+    releaseName: reloader
+    namespace: reloader
+    valuesInline:
+      # Reloader configuration
+      reloader:
+        # Watch all namespaces
+        watchGlobally: true
+
+        # Ignore namespaces
+        ignoreNamespaces: "kube-system,kube-public,kube-node-lease"
+
+        # Sync interval
+        syncAfterRestart: true
+
+        # Resource limits
+        deployment:
+          replicas: 2
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 10m
+              memory: 32Mi
+
+          # Pod anti-affinity for HA
+          affinity:
+            podAntiAffinity:
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 100
+                  podAffinityTerm:
+                    labelSelector:
+                      matchExpressions:
+                        - key: app
+                          operator: In
+                          values:
+                            - reloader
+                    topologyKey: kubernetes.io/hostname
+
+          # Security context
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+
+          # Pod security context
+          podSecurityContext:
+            fsGroup: 65534
+
+        # Enable metrics
+        enableMetrics: true
+
+        # Service monitor for Prometheus
+        serviceMonitor:
+          enabled: true
+          labels:
+            release: prometheus
+
+        # Auto-reload on ConfigMap/Secret changes
+        autoReloadAll: false  # Require explicit annotation
+
+        # Log format
+        logFormat: json
+
+resources:
+  - example-deployment.yaml
+  - rbac.yaml

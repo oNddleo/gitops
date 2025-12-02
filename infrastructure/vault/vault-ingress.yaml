@@ -1,0 +1,41 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: vault-ui
+  namespace: vault
+  labels:
+    app: vault
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`vault.example.com`)  # UPDATE THIS
+      kind: Rule
+      services:
+        - name: vault-ui
+          port: 8200
+      middlewares:
+        - name: vault-auth
+  tls:
+    secretName: vault-tls-cert
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: vault-auth
+  namespace: vault
+spec:
+  basicAuth:
+    secret: vault-basic-auth
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vault-basic-auth
+  namespace: vault
+type: Opaque
+stringData:
+  # Default: admin/changeme (use htpasswd to generate)
+  # htpasswd -nb admin changeme
+  users: |
+    admin:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/

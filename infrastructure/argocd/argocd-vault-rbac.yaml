@@ -1,0 +1,106 @@
+# ServiceAccount for ArgoCD to access Vault
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-repo-server
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-repo-server
+---
+# ClusterRole for ArgoCD to manage resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-application-controller
+rules:
+  - apiGroups:
+      - '*'
+    resources:
+      - '*'
+    verbs:
+      - '*'
+  - nonResourceURLs:
+      - '*'
+    verbs:
+      - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-application-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-application-controller
+subjects:
+  - kind: ServiceAccount
+    name: argocd-application-controller
+    namespace: argocd
+---
+# Vault policy for ArgoCD
+# This needs to be applied in Vault after it's initialized
+#
+# vault policy write argocd-policy - <<EOF
+# path "secret/data/*" {
+#   capabilities = ["read", "list"]
+# }
+# path "secret/metadata/*" {
+#   capabilities = ["read", "list"]
+# }
+# EOF
+#
+# vault write auth/kubernetes/role/argocd \
+#   bound_service_account_names=argocd-repo-server,argocd-server,argocd-application-controller \
+#   bound_service_account_namespaces=argocd \
+#   policies=argocd-policy \
+#   ttl=24h
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-policy-setup
+  namespace: argocd
+data:
+  setup-vault.sh: |
+    #!/bin/bash
+    set -e
+
+    echo "Setting up Vault for ArgoCD integration..."
+
+    # Wait for Vault to be ready
+    until vault status; do
+      echo "Waiting for Vault..."
+      sleep 5
+    done
+
+    # Enable Kubernetes auth if not already enabled
+    vault auth enable kubernetes 2>/dev/null || true
+
+    # Configure Kubernetes auth
+    vault write auth/kubernetes/config \
+      kubernetes_host="https://kubernetes.default.svc:443"
+
+    # Create policy for ArgoCD
+    vault policy write argocd-policy - <<EOF
+    path "secret/data/*" {
+      capabilities = ["read", "list"]
+    }
+    path "secret/metadata/*" {
+      capabilities = ["read", "list"]
+    }
+    path "kv/data/*" {
+      capabilities = ["read", "list"]
+    }
+    path "kv/metadata/*" {
+      capabilities = ["read", "list"]
+    }
+    EOF
+
+    # Create Kubernetes role for ArgoCD
+    vault write auth/kubernetes/role/argocd \
+      bound_service_account_names=argocd-repo-server,argocd-server,argocd-application-controller \
+      bound_service_account_namespaces=argocd \
+      policies=argocd-policy \
+      ttl=24h
+
+    echo "Vault setup for ArgoCD completed successfully!"

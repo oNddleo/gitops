@@ -1,0 +1,43 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard
+  namespace: traefik
+  labels:
+    app: traefik
+    component: dashboard
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`traefik.example.com`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))  # UPDATE HOST
+      kind: Rule
+      services:
+        - name: api@internal
+          kind: TraefikService
+      middlewares:
+        - name: dashboard-auth
+        - name: dashboard-ipwhitelist
+  tls:
+    secretName: traefik-dashboard-tls
+---
+# HTTP to HTTPS redirect
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: traefik-dashboard-redirect
+  namespace: traefik
+  labels:
+    app: traefik
+    component: dashboard
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`traefik.example.com`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))  # UPDATE HOST
+      kind: Rule
+      services:
+        - name: api@internal
+          kind: TraefikService
+      middlewares:
+        - name: https-redirect
