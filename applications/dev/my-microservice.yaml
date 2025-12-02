@@ -12,7 +12,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/YOUR_ORG/gitops-platform.git  # UPDATE THIS
+    repoURL: https://github.com/oNddleo/gitops.git
     targetRevision: develop
     path: charts/my-microservice
     helm:

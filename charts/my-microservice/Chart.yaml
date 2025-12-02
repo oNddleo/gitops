@@ -11,6 +11,6 @@ keywords:
 maintainers:
   - name: Platform Team
     email: platform@example.com
-home: https://github.com/YOUR_ORG/gitops-platform
+home: https://github.com/oNddleo/gitops
 sources:
-  - https://github.com/YOUR_ORG/gitops-platform
+  - https://github.com/oNddleo/gitops
