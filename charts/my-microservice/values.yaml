@@ -18,7 +18,9 @@ fullnameOverride: ""
 # Service account
 serviceAccount:
   create: true
-  annotations: {}
+  annotations:
+    # IRSA annotation for AWS Secrets Manager access
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/gitops-eks-cluster-secrets-csi-driver"  # UPDATE THIS
   name: ""
 
 # Pod annotations
@@ -150,22 +152,40 @@ configMap:
       app.environment=production
       feature.flag.enabled=true
 
-# External Secrets
-externalSecrets:
+# AWS Secrets Manager via CSI Driver
+secretsManager:
   enabled: true
-  secretStore:
-    name: vault-backend
-    kind: SecretStore
-  refreshInterval: 1h
-  data:
-    - secretKey: database-url
-      remoteRef:
-        key: secret/production/myapp/database
-        property: url
-    - secretKey: api-key
-      remoteRef:
-        key: secret/production/myapp/api
-        property: key
+  region: us-east-1  # UPDATE THIS
+  mountPath: /mnt/secrets
+
+  # Define which secrets to retrieve from AWS Secrets Manager
+  objects:
+    - objectName: "production/myapp/database"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: url
+          objectAlias: database-url
+        - path: username
+          objectAlias: database-username
+        - path: password
+          objectAlias: database-password
+    - objectName: "production/myapp/api-key"
+      objectType: "secretsmanager"
+      objectAlias: api-key
+
+  # Sync to Kubernetes Secret for use in environment variables
+  syncToKubernetesSecret: true
+
+  # Map secret fields to Kubernetes Secret keys
+  secretData:
+    - objectName: database-url
+      key: DATABASE_URL
+    - objectName: database-username
+      key: DATABASE_USERNAME
+    - objectName: database-password
+      key: DATABASE_PASSWORD
+    - objectName: api-key
+      key: API_KEY
 
 # Persistent Volume
 persistence:

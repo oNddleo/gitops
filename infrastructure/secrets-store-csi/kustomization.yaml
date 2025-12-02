@@ -1,0 +1,71 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: kube-system
+
+helmCharts:
+  # Secrets Store CSI Driver
+  - name: secrets-store-csi-driver
+    repo: https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
+    version: 1.4.1
+    releaseName: secrets-store-csi-driver
+    namespace: kube-system
+    valuesInline:
+      # Enable syncing secrets to Kubernetes Secrets
+      syncSecret:
+        enabled: true
+
+      # Enable automatic secret rotation
+      enableSecretRotation: true
+      rotationPollInterval: "120s"  # Check for secret updates every 2 minutes
+
+      # Service account configuration (IRSA)
+      serviceAccount:
+        create: true
+        name: secrets-store-csi-driver
+        annotations:
+          eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/gitops-eks-cluster-secrets-csi-driver"  # UPDATE THIS
+
+      # Resource limits
+      linux:
+        resources:
+          limits:
+            cpu: 200m
+            memory: 200Mi
+          requests:
+            cpu: 50m
+            memory: 100Mi
+
+      # Enable metrics
+      enableMetrics: true
+
+      # Log verbosity
+      logVerbosity: 2
+
+  # AWS Secrets Manager Provider
+  - name: secrets-store-csi-driver-provider-aws
+    repo: https://aws.github.io/secrets-store-csi-driver-provider-aws
+    version: 0.3.7
+    releaseName: secrets-store-csi-driver-provider-aws
+    namespace: kube-system
+    valuesInline:
+      # Resource limits for AWS provider
+      resources:
+        limits:
+          cpu: 100m
+          memory: 100Mi
+        requests:
+          cpu: 50m
+          memory: 50Mi
+
+      # Security context
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        capabilities:
+          drop:
+            - ALL
+
+resources:
+  - example-secretproviderclass.yaml

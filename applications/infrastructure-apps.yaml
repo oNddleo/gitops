@@ -20,7 +20,7 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: vault
+  name: secrets-store-csi
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -29,39 +29,10 @@ spec:
   source:
     repoURL: https://github.com/YOUR_ORG/gitops-platform.git  # UPDATE THIS
     targetRevision: HEAD
-    path: infrastructure/vault
+    path: infrastructure/secrets-store-csi
   destination:
     server: https://kubernetes.default.svc
-    namespace: vault
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
----
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: external-secrets
-  namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  project: infrastructure
-  source:
-    repoURL: https://github.com/YOUR_ORG/gitops-platform.git  # UPDATE THIS
-    targetRevision: HEAD
-    path: infrastructure/external-secrets
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: external-secrets-system
+    namespace: kube-system
   syncPolicy:
     automated:
       prune: true

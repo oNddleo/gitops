@@ -67,6 +67,11 @@ spec:
             - name: data
               mountPath: {{ .Values.persistence.mountPath }}
             {{- end }}
+            {{- if .Values.secretsManager.enabled }}
+            - name: secrets-store
+              mountPath: {{ .Values.secretsManager.mountPath }}
+              readOnly: true
+            {{- end }}
             {{- with .Values.volumes }}
             {{- range . }}
             - name: {{ .name }}
@@ -82,6 +87,14 @@ spec:
         - name: data
           persistentVolumeClaim:
             claimName: {{ include "my-microservice.fullname" . }}
+        {{- end }}
+        {{- if .Values.secretsManager.enabled }}
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: {{ include "my-microservice.fullname" . }}-secrets
         {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
