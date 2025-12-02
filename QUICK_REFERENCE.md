@@ -11,7 +11,10 @@ Quick commands and workflows for daily operations.
 kubectl get application -n argocd
 
 # Infrastructure health
-kubectl get pods -n vault -n traefik -n linkerd -n reloader
+kubectl get pods -n kube-system | grep csi
+kubectl get pods -n traefik
+kubectl get pods -n linkerd
+kubectl get pods -n reloader
 
 # Application health
 kubectl get pods -n production -n staging -n development
@@ -84,17 +87,41 @@ git push
 ### Manage Secrets
 
 ```bash
-# Create secret in Vault
-vault kv put secret/production/myapp/api \
-  key="new-api-key" \
-  secret="new-secret"
+# Create secret in AWS Secrets Manager
+aws secretsmanager create-secret \
+  --name production/myapp/api \
+  --description "Production API credentials" \
+  --secret-string '{"key":"new-api-key","secret":"new-secret"}' \
+  --region us-east-1 \
+  --tags Key=Environment,Value=production
 
-# ExternalSecret will sync automatically
-# Reloader will restart pods within refreshInterval
+# Update existing secret
+aws secretsmanager update-secret \
+  --secret-id production/myapp/api \
+  --secret-string '{"key":"updated-key","secret":"updated-secret"}' \
+  --region us-east-1
 
-# Force immediate sync
-kubectl delete externalsecret <name> -n production
-kubectl apply -f applications/production/
+# List all secrets
+aws secretsmanager list-secrets --region us-east-1
+
+# Get secret value
+aws secretsmanager get-secret-value \
+  --secret-id production/myapp/api \
+  --region us-east-1
+
+# Check SecretProviderClass status
+kubectl get secretproviderclass -n production
+kubectl describe secretproviderclass my-microservice-secrets -n production
+
+# Check if secret is mounted in pod
+kubectl exec -n production <pod-name> -- ls -la /mnt/secrets
+
+# Check synced Kubernetes Secret
+kubectl get secret my-microservice-secrets -n production
+kubectl describe secret my-microservice-secrets -n production
+
+# CSI Driver syncs automatically (default: 2-minute poll interval)
+# Reloader triggers rolling update when Kubernetes Secret changes
 ```
 
 ### Scale Application
@@ -162,22 +189,44 @@ kubectl describe pod <pod-name> -n <namespace>
 
 # Check secrets are mounted
 kubectl get pod <pod-name> -n <namespace> -o yaml | grep -A 10 volumes
+kubectl exec -n <namespace> <pod-name> -- ls -la /mnt/secrets
 ```
 
-### Vault Connection Issues
+### AWS Secrets Manager & CSI Driver Issues
 
 ```bash
-# Test Vault connectivity
-kubectl run vault-test --rm -it --image=hashicorp/vault:1.15.4 -- sh
-vault status -address=http://vault.vault.svc.cluster.local:8200
+# Check CSI Driver pods
+kubectl get pods -n kube-system | grep csi
+kubectl logs -n kube-system -l app=secrets-store-csi-driver
 
-# Check ExternalSecret status
-kubectl get externalsecret -A
-kubectl describe externalsecret <name> -n <namespace>
+# Check AWS Provider logs
+kubectl logs -n kube-system -l app.kubernetes.io/name=secrets-store-csi-driver-provider-aws
 
-# Check Vault auth
-vault token lookup
-vault auth list
+# Check SecretProviderClass
+kubectl get secretproviderclass -A
+kubectl describe secretproviderclass <name> -n <namespace>
+
+# Check if secret exists in AWS
+aws secretsmanager describe-secret --secret-id production/myapp/database --region us-east-1
+aws secretsmanager get-secret-value --secret-id production/myapp/database --region us-east-1
+
+# Test IRSA permissions from pod
+kubectl run aws-cli --rm -it --image=amazon/aws-cli \
+  --serviceaccount=<service-account-name> -n <namespace> -- \
+  sts get-caller-identity
+
+kubectl run aws-cli --rm -it --image=amazon/aws-cli \
+  --serviceaccount=<service-account-name> -n <namespace> -- \
+  secretsmanager get-secret-value --secret-id production/myapp/database --region us-east-1
+
+# Check pod events for CSI errors
+kubectl describe pod <pod-name> -n <namespace> | grep -A 20 Events
+
+# Check if CSI volume is mounted
+kubectl describe pod <pod-name> -n <namespace> | grep -A 10 "Volumes:"
+
+# Check CSI driver events
+kubectl get events -n <namespace> | grep ProviderVolume
 ```
 
 ### Config Not Reloading
@@ -233,24 +282,32 @@ linkerd viz tap deployment/<app> -n <namespace>
 ### Backup
 
 ```bash
-# Backup Vault
-vault operator raft snapshot save vault-backup-$(date +%Y%m%d).snap
-
 # Backup ArgoCD applications
 kubectl get application -n argocd -o yaml > argocd-apps-backup-$(date +%Y%m%d).yaml
 
+# Backup Linkerd certificates
+cp -r infrastructure/linkerd/certs linkerd-certs-backup-$(date +%Y%m%d)/
+
+# Export AWS Secrets Manager inventory (for documentation/DR)
+aws secretsmanager list-secrets --region us-east-1 > secrets-inventory-$(date +%Y%m%d).json
+
 # Backup all manifests
-kubectl get all,ingress,ingressroute,externalsecret -A -o yaml > cluster-backup-$(date +%Y%m%d).yaml
+kubectl get all,ingress,ingressroute,secretproviderclass -A -o yaml > cluster-backup-$(date +%Y%m%d).yaml
 ```
 
 ### Restore
 
 ```bash
-# Restore Vault
-vault operator raft snapshot restore vault-backup.snap
-
 # Restore ArgoCD applications
 kubectl apply -f argocd-apps-backup.yaml
+
+# Note: Secrets are in AWS Secrets Manager (no restore needed unless AWS account lost)
+# Restore Linkerd certificates if needed
+kubectl create secret tls linkerd-identity-issuer \
+  --cert=linkerd-certs-backup/issuer.crt \
+  --key=linkerd-certs-backup/issuer.key \
+  --namespace=linkerd \
+  --dry-run=client -o yaml | kubectl apply -f -
 ```
 
 ### Update Infrastructure Component
@@ -272,23 +329,31 @@ git push
 watch kubectl get pods -n traefik
 ```
 
-### Rotate Credentials
+### Rotate Secrets
 
 ```bash
-# 1. Update in Vault
-vault kv put secret/production/myapp/db password="new-password"
+# 1. Update in AWS Secrets Manager
+aws secretsmanager update-secret \
+  --secret-id production/myapp/db \
+  --secret-string '{"url":"postgresql://...","password":"new-password"}' \
+  --region us-east-1
 
-# 2. ExternalSecret syncs (wait for refreshInterval or delete/recreate)
-kubectl delete externalsecret db-creds -n production
+# 2. CSI Driver will sync automatically (default: 2-minute poll interval)
+# Wait ~2 minutes or check secret in pod:
+kubectl exec -n production <pod> -- cat /mnt/secrets/database-password
 
-# 3. Reloader triggers rolling update
-# Pods will restart with new secret
+# 3. Reloader will trigger rolling update when Kubernetes Secret changes
+kubectl get events -n production --sort-by='.lastTimestamp' | grep Reloader
+kubectl get pods -n production -w
+
+# Or force immediate sync by deleting and recreating the pod:
+kubectl delete pod -n production -l app=my-microservice
 ```
 
 ### Certificate Renewal
 
 ```bash
-# Linkerd certificates (every ~8760h = 1 year)
+# Linkerd certificates (renew annually ~8760h)
 cd infrastructure/linkerd
 ./generate-certs.sh
 
@@ -335,7 +400,8 @@ kubectl logs <pod> -n <namespace> --timestamps
 
 ```bash
 # DNS resolution
-kubectl run dnsutils --rm -it --image=gcr.io/kubernetes-e2e-test-images/dnsutils:1.3 -- nslookup <service>.<namespace>.svc.cluster.local
+kubectl run dnsutils --rm -it --image=gcr.io/kubernetes-e2e-test-images/dnsutils:1.3 -- \
+  nslookup <service>.<namespace>.svc.cluster.local
 
 # Network connectivity
 kubectl run netshoot --rm -it --image=nicolaka/netshoot -- bash
@@ -363,57 +429,40 @@ EOF
 kubectl create namespace <env>
 kubectl annotate namespace <env> linkerd.io/inject=enabled
 
-# 2. Create SecretStore
-cat > infrastructure/external-secrets/vault-secret-store.yaml <<EOF
-apiVersion: external-secrets.io/v1beta1
-kind: SecretStore
-metadata:
-  name: vault-backend
-  namespace: <env>
-spec:
-  provider:
-    vault:
-      server: "http://vault.vault.svc.cluster.local:8200"
-      path: "secret"
-      version: "v2"
-      auth:
-        kubernetes:
-          mountPath: "kubernetes"
-          role: "<env>-apps"
-EOF
+# 2. Create secrets in AWS Secrets Manager
+aws secretsmanager create-secret \
+  --name <env>/myapp/database \
+  --secret-string '{"url":"...","password":"..."}' \
+  --region us-east-1 \
+  --tags Key=Environment,Value=<env>
 
-# 3. Create Vault policy
-vault policy write <env>-apps-policy - <<EOF
-path "secret/data/<env>/*" {
-  capabilities = ["read", "list"]
-}
-EOF
+# 3. Update Helm values for the environment
+cp charts/my-microservice/ci/dev-values.yaml charts/my-microservice/ci/<env>-values.yaml
+vim charts/my-microservice/ci/<env>-values.yaml
+# Update: namespace, secretsManager.objects paths, etc.
 
-# 4. Create Vault role
-vault write auth/kubernetes/role/<env>-apps \
-  bound_service_account_names=default \
-  bound_service_account_namespaces=<env> \
-  policies=<env>-apps-policy \
-  ttl=24h
+# 4. Create App of Apps
+cp applications/app-of-apps-dev.yaml applications/app-of-apps-<env>.yaml
+vim applications/app-of-apps-<env>.yaml
+# Update: namespace, targetNamespace, valueFiles
 
-# 5. Create App of Apps
-cp applications/app-of-apps-production.yaml applications/app-of-apps-<env>.yaml
-# Update namespace and path
-
-# 6. Commit and push
+# 5. Commit and push
 git add .
 git commit -m "feat: add <env> environment"
 git push
+
+# 6. Deploy
+kubectl apply -f applications/app-of-apps-<env>.yaml
 ```
 
 ### CI/CD Pipeline Debugging
 
 ```bash
-# View GitHub Actions logs
+# View GitHub Actions logs (requires gh CLI)
 gh run list
 gh run view <run-id>
 
-# Test CI locally with act
+# Test CI locally with act (https://github.com/nektos/act)
 act -j build-and-push
 
 # Manually trigger workflow
@@ -422,10 +471,9 @@ gh workflow run ci-build-deploy.yaml
 
 ## Quick Links
 
-- **ArgoCD UI:** <https://argocd.example.com>
-- **Traefik Dashboard:** <https://traefik.example.com>
-- **Linkerd Dashboard:** <https://linkerd.example.com>
-- **Vault UI:** <https://vault.example.com>
+- **ArgoCD UI:** https://argocd.example.com
+- **Traefik Dashboard:** https://traefik.example.com
+- **Linkerd Dashboard:** https://linkerd.example.com
 
 ## Keyboard Shortcuts (ArgoCD UI)
 
@@ -442,13 +490,12 @@ gh workflow run ci-build-deploy.yaml
 export ARGOCD_SERVER=argocd.example.com
 export ARGOCD_AUTH_TOKEN=$(argocd account generate-token)
 
-# Vault
-export VAULT_ADDR=http://localhost:8200
-export VAULT_TOKEN=<your-token>
-
 # AWS
 export AWS_REGION=us-east-1
 export AWS_PROFILE=default
+
+# Kubernetes
+export KUBECONFIG=~/.kube/config
 ```
 
 ## Useful Aliases
@@ -469,9 +516,107 @@ alias argolist='argocd app list'
 alias argosync='argocd app sync'
 alias argoget='argocd app get'
 
-alias vaultlogin='kubectl port-forward -n vault svc/vault 8200:8200 & export VAULT_ADDR=http://localhost:8200'
+alias awssm='aws secretsmanager'
+alias awssm-list='aws secretsmanager list-secrets --region us-east-1'
+alias awssm-get='aws secretsmanager get-secret-value --region us-east-1 --secret-id'
+```
+
+## Secret Management Cheat Sheet
+
+```bash
+# Create secret
+aws secretsmanager create-secret \
+  --name <env>/<app>/<name> \
+  --secret-string '{"key":"value"}' \
+  --region us-east-1
+
+# Update secret
+aws secretsmanager update-secret \
+  --secret-id <env>/<app>/<name> \
+  --secret-string '{"key":"new-value"}' \
+  --region us-east-1
+
+# Get secret
+aws secretsmanager get-secret-value \
+  --secret-id <env>/<app>/<name> \
+  --region us-east-1
+
+# Delete secret (30-day recovery window)
+aws secretsmanager delete-secret \
+  --secret-id <env>/<app>/<name> \
+  --region us-east-1
+
+# Restore deleted secret
+aws secretsmanager restore-secret \
+  --secret-id <env>/<app>/<name> \
+  --region us-east-1
+
+# Force delete (no recovery)
+aws secretsmanager delete-secret \
+  --secret-id <env>/<app>/<name> \
+  --force-delete-without-recovery \
+  --region us-east-1
+```
+
+## CSI Driver Troubleshooting Cheat Sheet
+
+```bash
+# Check CSI Driver health
+kubectl get pods -n kube-system | grep csi
+kubectl get daemonset -n kube-system secrets-store-csi-driver
+kubectl get csidriver secrets-store.csi.k8s.io
+
+# View CSI Driver logs
+kubectl logs -n kube-system -l app=secrets-store-csi-driver --tail=100
+
+# View AWS Provider logs
+kubectl logs -n kube-system -l app.kubernetes.io/name=secrets-store-csi-driver-provider-aws --tail=100
+
+# List SecretProviderClass in all namespaces
+kubectl get secretproviderclass -A
+
+# Check if secret is mounted in pod
+kubectl exec -n <namespace> <pod> -- ls -la /mnt/secrets
+kubectl exec -n <namespace> <pod> -- cat /mnt/secrets/<secret-file>
+
+# Check if Kubernetes Secret is synced
+kubectl get secret <name> -n <namespace>
+kubectl get secret <name> -n <namespace> -o jsonpath='{.data}' | jq
+
+# Check pod events for CSI errors
+kubectl describe pod <pod> -n <namespace> | grep -A 30 Events
+
+# Test IRSA from pod
+kubectl run aws-test --rm -it --image=amazon/aws-cli \
+  --serviceaccount=<sa-name> -n <namespace> -- \
+  secretsmanager list-secrets --region us-east-1
+```
+
+## ArgoCD Sync Strategies
+
+```bash
+# Auto-sync (automatic deployment)
+argocd app set <app-name> --sync-policy automated
+
+# Manual sync only
+argocd app set <app-name> --sync-policy none
+
+# Enable auto-prune (delete resources not in Git)
+argocd app set <app-name> --auto-prune
+
+# Enable self-heal (revert manual changes)
+argocd app set <app-name> --self-heal
+
+# Sync with prune
+argocd app sync <app-name> --prune
+
+# Sync specific resource
+argocd app sync <app-name> --resource :Deployment:my-app
 ```
 
 ---
 
 **Pro Tip:** Keep this guide bookmarked for quick access during incidents!
+
+**Last Updated:** 2025-12-02
+**Platform Version:** 2.0.0 (AWS Secrets Manager)

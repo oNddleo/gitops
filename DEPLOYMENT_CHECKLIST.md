@@ -1,18 +1,15 @@
 # GitOps Platform Deployment Checklist
 
-Use this checklist to ensure a successful deployment of the GitOps platform.
+Use this checklist to ensure a successful deployment of the GitOps platform. For detailed instructions, refer to [README.md](./README.md#deployment-guide).
 
 ## Pre-Deployment
 
 ### AWS Resources
 
-- [ ] EKS cluster created (v1.28+)
+- [ ] EKS cluster created (v1.28+) with OIDC provider enabled
 - [ ] ECR repository created for Docker images
-- [ ] ECR repository created for Helm charts
-- [ ] DynamoDB table created for Vault (`vault-data`)
-- [ ] S3 bucket created for Vault snapshots
-- [ ] KMS key created for Vault auto-unseal
-- [ ] IAM role created for Vault with IRSA
+- [ ] ECR repository created for Helm charts (OCI format)
+- [ ] IAM role created for CSI Driver with IRSA
 - [ ] VPC and subnets configured
 - [ ] Security groups configured
 - [ ] EKS node groups created
@@ -24,7 +21,7 @@ Use this checklist to ensure a successful deployment of the GitOps platform.
 - [ ] `aws-cli` installed and configured
 - [ ] `argocd` CLI installed
 - [ ] `step` CLI installed (for certificate generation)
-- [ ] `terraform` installed (optional)
+- [ ] `terraform` installed
 
 ### Repository Configuration
 
@@ -35,6 +32,9 @@ Use this checklist to ensure a successful deployment of the GitOps platform.
   - [ ] `applications/*/my-microservice.yaml`
 - [ ] ECR registry URLs updated
 - [ ] Domain names updated in ingress configurations
+- [ ] IAM role ARNs updated in:
+  - [ ] `infrastructure/secrets-store-csi/kustomization.yaml`
+  - [ ] Helm chart `values.yaml` files for ServiceAccounts
 - [ ] GitHub Actions secrets configured:
   - [ ] `AWS_ACCESS_KEY_ID`
   - [ ] `AWS_SECRET_ACCESS_KEY`
@@ -42,9 +42,18 @@ Use this checklist to ensure a successful deployment of the GitOps platform.
   - [ ] `ARGOCD_USERNAME`
   - [ ] `ARGOCD_PASSWORD`
 
-## Infrastructure Deployment
+## Phase 1: Deploy Terraform Infrastructure
 
-### 1. Bootstrap ArgoCD
+- [ ] Terraform configuration reviewed and variables updated
+- [ ] Connected to AWS: `aws configure`
+- [ ] Executed: `terraform init`
+- [ ] Executed: `terraform plan`
+- [ ] Executed: `terraform apply`
+- [ ] CSI Driver IAM role ARN captured
+- [ ] IAM role verified: `aws iam get-role --role-name gitops-eks-cluster-secrets-csi-driver`
+- [ ] IAM policy verified: `aws iam list-attached-role-policies --role-name gitops-eks-cluster-secrets-csi-driver`
+
+## Phase 2: Bootstrap ArgoCD
 
 - [ ] Connected to EKS cluster: `aws eks update-kubeconfig --name <cluster-name>`
 - [ ] Verified cluster access: `kubectl cluster-info`
@@ -54,22 +63,14 @@ Use this checklist to ensure a successful deployment of the GitOps platform.
 - [ ] Accessed ArgoCD UI successfully
 - [ ] Root App of Apps created: `kubectl get application infrastructure-apps -n argocd`
 
-### 2. Generate Certificates
+## Phase 3: Deploy Infrastructure Components
 
-- [ ] Linkerd certificates generated: `cd infrastructure/linkerd && ./generate-certs.sh`
-- [ ] Trust anchor secret created in Kubernetes
-- [ ] Issuer certificate secret created in Kubernetes
-- [ ] Certificates backed up securely
+### Verify Infrastructure Apps Deployment
 
-### 3. Deploy Infrastructure Components
-
-- [ ] Vault deployed and healthy
-  - [ ] Pods running: `kubectl get pods -n vault`
-  - [ ] Service accessible: `kubectl get svc -n vault`
-  - [ ] Vault initialized
-  - [ ] Vault unsealed
-  - [ ] Kubernetes auth enabled
-  - [ ] Policies created
+- [ ] CSI Driver deployed and healthy
+  - [ ] Pods running: `kubectl get pods -n kube-system | grep csi`
+  - [ ] DaemonSet ready: `kubectl get daemonset -n kube-system | grep secrets-store`
+  - [ ] CSI Driver registered: `kubectl get csidriver secrets-store.csi.k8s.io`
 - [ ] Traefik deployed and healthy
   - [ ] Pods running: `kubectl get pods -n traefik`
   - [ ] LoadBalancer created: `kubectl get svc -n traefik`
@@ -79,93 +80,110 @@ Use this checklist to ensure a successful deployment of the GitOps platform.
   - [ ] Viz components running: `kubectl get pods -n linkerd-viz`
   - [ ] Linkerd check passed: `linkerd check`
 - [ ] Reloader deployed: `kubectl get pods -n reloader`
-- [ ] External Secrets Operator deployed: `kubectl get pods -n external-secrets-system`
 - [ ] ArgoCD self-managed configuration applied
 
-### 4. Configure Vault
+### Generate and Configure Linkerd Certificates
 
-- [ ] Port-forward to Vault: `kubectl port-forward -n vault svc/vault 8200:8200`
-- [ ] Logged in to Vault: `vault login <token>`
-- [ ] Kubernetes auth configured
-- [ ] ArgoCD policy created
-- [ ] External Secrets policy created
-- [ ] Application policies created (dev, staging, production)
-- [ ] Kubernetes roles created
-- [ ] Example secrets created:
-  - [ ] `secret/production/myapp/database`
-  - [ ] `secret/staging/myapp/database`
-  - [ ] `secret/development/myapp/database`
-  - [ ] `secret/shared/config`
+- [ ] Certificates generated: `cd infrastructure/linkerd && ./generate-certs.sh`
+- [ ] Trust anchor secret created in Kubernetes
+- [ ] Issuer certificate secret created in Kubernetes
+- [ ] Certificates backed up securely
+- [ ] Linkerd control plane restarted
 
-### 5. Verify Infrastructure
+## Phase 4: Create Secrets in AWS Secrets Manager
+
+- [ ] Production secrets created:
+  - [ ] `production/myapp/database`
+  - [ ] `production/myapp/api-key`
+- [ ] Staging secrets created:
+  - [ ] `staging/myapp/database`
+- [ ] Development secrets created:
+  - [ ] `development/myapp/database`
+- [ ] Secrets verified: `aws secretsmanager list-secrets --region us-east-1`
+- [ ] Sample secret retrieved: `aws secretsmanager get-secret-value --secret-id production/myapp/database`
+
+## Phase 5: Verify Infrastructure
 
 - [ ] All ArgoCD infrastructure apps synced and healthy:
-
   ```bash
   kubectl get application -n argocd | grep infrastructure
   ```
-
 - [ ] All infrastructure pods running
 - [ ] Ingress LoadBalancer has external IP/hostname
 - [ ] Dashboards accessible:
   - [ ] ArgoCD: `https://argocd.example.com`
   - [ ] Traefik: `https://traefik.example.com`
   - [ ] Linkerd: `https://linkerd.example.com`
-  - [ ] Vault: `https://vault.example.com`
 
-## Application Deployment
+## Phase 6: Deploy Applications
 
-### 1. Deploy Environment App of Apps
-
-- [ ] Production App of Apps deployed:
-
-  ```bash
-  kubectl apply -f applications/app-of-apps-production.yaml
-  ```
-
-- [ ] Staging App of Apps deployed:
-
-  ```bash
-  kubectl apply -f applications/app-of-apps-staging.yaml
-  ```
+### Development Environment
 
 - [ ] Development App of Apps deployed:
-
   ```bash
   kubectl apply -f applications/app-of-apps-dev.yaml
   ```
+- [ ] Application synced: `argocd app sync my-microservice-dev`
+- [ ] Pods running: `kubectl get pods -n development`
+- [ ] SecretProviderClass created: `kubectl get secretproviderclass -n development`
+- [ ] Secrets mounted in pod: `kubectl exec -n development <pod> -- ls -la /mnt/secrets`
+- [ ] Kubernetes Secret synced: `kubectl get secret my-microservice-secrets -n development`
+- [ ] Application health check passing
+- [ ] Application logs healthy
 
-### 2. Verify Application Deployments
+### Staging Environment
 
-- [ ] All application ArgoCD apps created: `kubectl get application -n argocd`
-- [ ] All apps synced and healthy: `argocd app list`
-- [ ] Application namespaces created:
-  - [ ] `production`
-  - [ ] `staging`
-  - [ ] `development`
-- [ ] Application pods running in each namespace
-- [ ] ExternalSecrets synced: `kubectl get externalsecret -A`
-- [ ] Secrets created from Vault: `kubectl get secret -n production`
+- [ ] Staging App of Apps deployed:
+  ```bash
+  kubectl apply -f applications/app-of-apps-staging.yaml
+  ```
+- [ ] Application synced: `argocd app sync my-microservice-staging`
+- [ ] Pods running: `kubectl get pods -n staging`
+- [ ] SecretProviderClass created: `kubectl get secretproviderclass -n staging`
+- [ ] Secrets mounted in pod: `kubectl exec -n staging <pod> -- ls -la /mnt/secrets`
+- [ ] Kubernetes Secret synced: `kubectl get secret my-microservice-secrets -n staging`
+- [ ] Application health check passing
 
-### 3. Verify Service Mesh
+### Production Environment
+
+**Pre-deployment validation:**
+- [ ] Dev and Staging deployments successful
+- [ ] All tests passing
+- [ ] Monitoring and alerting configured
+- [ ] Rollback plan documented
+- [ ] Team notified of deployment
+- [ ] Maintenance window scheduled (if needed)
+
+**Deployment:**
+- [ ] Production App of Apps deployed:
+  ```bash
+  kubectl apply -f applications/app-of-apps-production.yaml
+  ```
+- [ ] Application synced: `argocd app sync my-microservice-production`
+- [ ] Pods running: `kubectl get pods -n production`
+- [ ] SecretProviderClass created: `kubectl get secretproviderclass -n production`
+- [ ] Secrets mounted in all pods: verified via `kubectl exec`
+- [ ] Kubernetes Secret synced: `kubectl get secret my-microservice-secrets -n production`
+- [ ] Service health checks passing
+- [ ] External endpoint accessible: `curl https://myapp.example.com/health`
+- [ ] Metrics/monitoring functional
+
+## Phase 7: Verify Service Mesh
 
 - [ ] Namespaces have Linkerd injection enabled:
-
   ```bash
   kubectl get namespace production -o yaml | grep linkerd.io/inject
   ```
-
 - [ ] Pods have Linkerd proxy injected:
-
   ```bash
   kubectl get pods -n production -o yaml | grep linkerd-proxy
   ```
-
 - [ ] mTLS working: `linkerd viz stat deployment -n production`
+- [ ] Traffic visualization available: `linkerd viz dashboard`
 
 ## CI/CD Pipeline
 
-### 1. GitHub Actions Configuration
+### GitHub Actions Configuration
 
 - [ ] Workflows exist in `.github/workflows/`
 - [ ] Secrets configured in GitHub repository settings
@@ -173,7 +191,7 @@ Use this checklist to ensure a successful deployment of the GitOps platform.
 - [ ] Helm lint workflow passing
 - [ ] Docker build workflow passing
 
-### 2. Test CI/CD Flow
+### Test CI/CD Flow
 
 - [ ] Make a test commit to develop branch
 - [ ] CI pipeline triggered
@@ -186,29 +204,44 @@ Use this checklist to ensure a successful deployment of the GitOps platform.
 
 ## Validation & Testing
 
-### 1. End-to-End Tests
+### End-to-End Tests
 
 - [ ] Application accessible via ingress URL
 - [ ] HTTPS working with valid certificate
 - [ ] Application returns expected response
 - [ ] Database connection working (if applicable)
-- [ ] Secrets loaded correctly from Vault
+- [ ] Secrets loaded correctly from AWS Secrets Manager
 
-### 2. GitOps Flow
+### GitOps Flow
 
 - [ ] Manual `kubectl` changes reverted by ArgoCD (self-heal)
 - [ ] Git commit triggers deployment
-- [ ] Vault secret change triggers pod reload
+- [ ] AWS Secrets Manager secret change triggers pod reload
 - [ ] ConfigMap change triggers pod reload
 
-### 3. High Availability
+### Secret Rotation Testing
+
+- [ ] Updated secret in AWS Secrets Manager:
+  ```bash
+  aws secretsmanager update-secret \
+    --secret-id production/myapp/database \
+    --secret-string '{"password":"NEW_PASSWORD"}' \
+    --region us-east-1
+  ```
+- [ ] Waited for CSI Driver sync (2 minutes)
+- [ ] Secret file updated in pod: `kubectl exec -n production <pod> -- cat /mnt/secrets/database-password`
+- [ ] Kubernetes Secret updated: `kubectl get secret my-microservice-secrets -n production`
+- [ ] Reloader triggered rolling update: `kubectl get events -n production | grep Reloader`
+- [ ] Pods restarted with new secret
+
+### High Availability
 
 - [ ] Multiple replicas running
 - [ ] HPA scaling works
 - [ ] Pod disruption budget set
-- [ ] Node failure doesn't cause downtime
+- [ ] Node failure doesn't cause downtime (optional)
 
-### 4. Security
+### Security
 
 - [ ] mTLS enabled between services
 - [ ] Secrets not stored in Git
@@ -218,35 +251,36 @@ Use this checklist to ensure a successful deployment of the GitOps platform.
 
 ## Post-Deployment
 
-### 1. Documentation
+### Documentation
 
-- [ ] Update README with cluster-specific information
-- [ ] Document custom configurations
-- [ ] Create runbooks for common operations
-- [ ] Document backup/restore procedures
+- [ ] README.md updated with cluster-specific information
+- [ ] Custom configurations documented
+- [ ] Runbooks created for common operations
+- [ ] Backup/restore procedures documented
 
-### 2. Monitoring Setup
+### Monitoring Setup
 
-- [ ] Prometheus collecting metrics
-- [ ] Grafana dashboards created
-- [ ] Alerts configured
-- [ ] Log aggregation setup
+- [ ] Prometheus collecting metrics (optional, future enhancement)
+- [ ] Grafana dashboards created (optional)
+- [ ] Alerts configured (optional)
+- [ ] Log aggregation setup (optional)
 
-### 3. Backups
+### Backups
 
-- [ ] Vault snapshot taken and stored securely
-- [ ] ArgoCD applications exported
-- [ ] Helm charts backed up
-- [ ] Linkerd certificates backed up
+- [ ] Linkerd certificates backed up securely
+- [ ] ArgoCD applications exported: `kubectl get application -n argocd -o yaml > argocd-backup.yaml`
+- [ ] AWS Secrets Manager secrets inventory: `aws secretsmanager list-secrets > secrets-inventory.json`
+- [ ] Helm charts backed up in ECR
 
-### 4. Team Training
+### Team Training
 
 - [ ] Team trained on GitOps workflow
 - [ ] Team has access to ArgoCD UI
 - [ ] Team knows how to deploy applications
 - [ ] Team knows how to troubleshoot issues
+- [ ] Team understands secret management with AWS Secrets Manager + CSI Driver
 
-### 5. Operational Readiness
+### Operational Readiness
 
 - [ ] On-call rotation established
 - [ ] Incident response procedures documented
@@ -258,48 +292,50 @@ Use this checklist to ensure a successful deployment of the GitOps platform.
 Verify all success criteria are met:
 
 - [ ] ✅ Commit to code triggers automatic deployment in < 5 minutes
-- [ ] ✅ Vault secret changes automatically rollout pods
+- [ ] ✅ AWS Secrets Manager secret changes automatically rollout pods
 - [ ] ✅ Traefik dashboard accessible and shows IngressRoutes
 - [ ] ✅ ArgoCD UI shows all apps as "Healthy" and "Synced"
 - [ ] ✅ `kubectl get application -n argocd` shows all apps
 - [ ] ✅ Service mesh mTLS enabled by default
 - [ ] ✅ No manual `kubectl` commands needed for deployments
-- [ ] ✅ All secrets managed by Vault, none in Git
+- [ ] ✅ All secrets managed by AWS Secrets Manager, none in Git
+- [ ] ✅ CSI Driver mounting secrets as volumes in pods
+- [ ] ✅ Reloader triggering rolling updates on secret changes
 
 ## Rollback Plan
 
 In case of issues:
 
-1. **Infrastructure Issues:**
+**Infrastructure Issues:**
+```bash
+# Disable auto-sync
+argocd app set <app-name> --sync-policy none
 
-   ```bash
-   # Disable auto-sync
-   argocd app set <app-name> --sync-policy none
+# Revert to previous Git commit
+git revert <commit-hash>
+git push
 
-   # Revert to previous Git commit
-   git revert <commit-hash>
-   git push
+# Sync ArgoCD
+argocd app sync <app-name>
+```
 
-   # Sync ArgoCD
-   argocd app sync <app-name>
-   ```
+**Application Issues:**
+```bash
+# Roll back to previous image
+cd charts/my-microservice/ci
+# Update image tag to previous version
+git commit -m "rollback: revert to v1.0.0"
+git push
+```
 
-2. **Application Issues:**
-
-   ```bash
-   # Roll back to previous image
-   cd charts/my-microservice/ci
-   # Update image tag to previous version
-   git commit -m "rollback: revert to v1.0.0"
-   git push
-   ```
-
-3. **Vault Issues:**
-
-   ```bash
-   # Restore from snapshot
-   vault operator raft snapshot restore backup.snap
-   ```
+**Secret Issues:**
+```bash
+# Revert secret in AWS Secrets Manager
+aws secretsmanager update-secret \
+  --secret-id production/myapp/database \
+  --secret-string '<previous-value>' \
+  --region us-east-1
+```
 
 ---
 
@@ -308,7 +344,9 @@ In case of issues:
 - Keep this checklist updated as the platform evolves
 - Document any deviations from the standard deployment
 - Share lessons learned with the team
+- For detailed deployment instructions, refer to [README.md](./README.md#deployment-guide)
 
 ---
 
-**Last Updated:** 2025-01-25
+**Last Updated:** 2025-12-02
+**Platform Version:** 2.0.0 (AWS Secrets Manager)

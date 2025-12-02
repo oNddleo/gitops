@@ -109,3 +109,50 @@ gitops-platform/
 ---
 
 This prompt provides a solid foundation for building the sophisticated platform you've described. You can now provide this to an AI or a team to generate the specific YAML manifests, Helm `values.yaml` files, and pipeline code.
+
+---
+### **Prompt: Migration to AWS Secrets Manager**
+Act as a Senior DevOps Engineer and Kubernetes Architect. I need to refactor a specific section of our infrastructure roadmap regarding Secrets Management.
+
+  We have decided to move away from self-hosted HashiCorp Vault to reduce operational overhead. We will strictly use AWS Secrets Manager.
+
+  **Context & Constraints:**
+  1.  **Remove:** HashiCorp Vault (and its DynamoDB/S3 backends).
+  2.  **Remove:** External Secrets Operator (ESO).
+  3.  **Implement:** AWS Secrets Manager integrated directly via the **Kubernetes Secrets Store CSI Driver** (using the AWS Provider).
+  4.  **Goal:** Pods must be able to mount secrets from AWS Secrets Manager as volumes or sync them to Kubernetes Secrets via the CSI driver.
+
+  **Task 1: Update the Documentation**
+  Please rewrite the following row in our project plan to reflect this architectural change:
+  * **Original:** `| Secrets Management | HashiCorp Vault | Deploy Vault on EKS in High-Availability mode with an AWS DynamoDB & S3 backend. Integrate with ArgoCD using External Secrets Operator to inject secrets at deploy time. |`
+
+  **Task 2: Implementation Plan (Terraform & Helm)**
+  Provide the necessary Infrastructure-as-Code snippets to implement this change:
+  1.  **IAM Policy:** A Terraform snippet for the IAM OIDC role that allows the EKS pods to read from AWS Secrets Manager.
+  2.  **Helm Release:** The Terraform/Helm configuration to install the `secrets-store-csi-driver` and the `secrets-store-csi-driver-provider-aws`.
+  3.  **Manifest Example:** A sample `SecretProviderClass` YAML that demonstrates how to map an AWS Secret to a Kubernetes Secret.
+
+---
+### **Prompt: Merge & Refactor**
+
+I need to refactor the project documentation to reflect our architectural changes.
+
+**Files to process:**
+1.  `IMPLEMENTATION_PLAN.md`
+2.  `DEPLOYMENT_CHECKLIST.md`
+3.  `README.md`
+4.  `IMPLEMENTATION_SUMMARY.md`
+5.  `QUICK_REFERENCE.md`
+6.  `MIGRATION_GUIDE.md`
+
+**Your Task:**
+Merge the relevant deployment steps from all files markdown into `README.md` to create a single source of truth, then update the content based on the following rules:
+
+1.  **Merge & Consolidate:** Move the deployment instructions into the Guidelines file. If any files becomes redundant after this, mark it for deletion.
+2.  **Remove Legacy Secrets Logic:**
+    * Identify any sections discussing **External Secrets Operator**, **HashiCorp Vault**, or **Key Vault**.
+    * **Delete these sections entirely.** We are no longer using the External Secrets Operator pattern.
+3.  **Standardize:** Ensure the remaining deployment steps assume the use of **AWS Secrets Manager** (native/CSI driver) instead of the old Vault setup.
+4.  **Cleanup:** Fix any broken links or table of contents entries resulting from these removals.
+
+Output the updated content for the merged file.I need to refactor the project documentation to reflect our architectural changes.
