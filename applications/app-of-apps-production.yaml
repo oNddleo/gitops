@@ -12,7 +12,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/oNddleo/gitops.git
+    repoURL: https://github.com/oNddleo/dev-apps.git
     targetRevision: HEAD
     path: applications/production
     directory:
