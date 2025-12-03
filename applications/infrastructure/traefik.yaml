@@ -11,6 +11,8 @@ spec:
     repoURL: https://github.com/oNddleo/gitops.git  # UPDATE THIS
     targetRevision: HEAD
     path: infrastructure/traefik
+    kustomize:
+      buildOptions: --enable-helm
   destination:
     server: https://kubernetes.default.svc
     namespace: traefik
