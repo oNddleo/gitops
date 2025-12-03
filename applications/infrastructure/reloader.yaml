@@ -7,38 +7,44 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: infrastructure
-  source:
-    chart: reloader
-    repoURL: https://stakater.github.io/stakater-charts
-    targetRevision: 1.0.79
-    helm:
-      releaseName: reloader
-      valuesObject:
-        reloader:
-          watchGlobally: true
-          ignoreNamespaces: "kube-system,kube-public,kube-node-lease"
-          syncAfterRestart: true
-          deployment:
-            replicas: 1  # Single node K3s
-            resources:
-              limits:
-                cpu: 100m
-                memory: 128Mi
-              requests:
-                cpu: 10m
-                memory: 32Mi
-            securityContext:
-              runAsNonRoot: true
-              runAsUser: 65534
-            podSecurityContext:
-              fsGroup: 65534
-          enableMetrics: true
-          serviceMonitor:
-            enabled: true
-            labels:
-              release: prometheus
-          autoReloadAll: false
-          logFormat: json
+  sources:
+    # Source 1: Helm Chart
+    - repoURL: https://stakater.github.io/stakater-charts
+      chart: reloader
+      targetRevision: 2.2.5
+      helm:
+        releaseName: reloader
+        valuesObject:
+          reloader:
+            watchGlobally: true
+            ignoreNamespaces: "kube-system,kube-public,kube-node-lease"
+            syncAfterRestart: true
+            deployment:
+              replicas: 1  # Single node K3s
+              resources:
+                limits:
+                  cpu: 100m
+                  memory: 128Mi
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 65534
+              podSecurityContext:
+                fsGroup: 65534
+            enableMetrics: true
+            serviceMonitor:
+              enabled: true
+              labels:
+                release: prometheus
+            autoReloadAll: false
+            logFormat: json
+
+    # Source 2: Kustomize Overlay
+    - repoURL: https://github.com/oNddleo/gitops.git
+      targetRevision: HEAD
+      path: infrastructure/reloader/overlays/dev
   destination:
     server: https://kubernetes.default.svc
     namespace: reloader

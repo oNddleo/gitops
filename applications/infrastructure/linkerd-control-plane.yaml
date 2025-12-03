@@ -7,65 +7,71 @@ metadata:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: infrastructure
-  source:
-    chart: linkerd-control-plane
-    repoURL: https://helm.linkerd.io/stable
-    targetRevision: 1.16.11
-    helm:
-      releaseName: linkerd-control-plane
-      valuesObject:
-        identity:
-          issuer:
-            scheme: kubernetes.io/tls
-        controllerReplicas: 1  # Single node K3s
-        controllerResources:
-          cpu:
-            request: 100m
-          memory:
-            request: 128Mi
-          limit:
-            cpu: 1000m
-            memory: 1Gi
-        destinationResources:
-          cpu:
-            request: 100m
-          memory:
-            request: 128Mi
-          limit:
-            cpu: 1000m
-            memory: 512Mi
-        proxy:
-          enableExternalProfiles: true
-          resources:
+  sources:
+    # Source 1: Helm Chart
+    - repoURL: https://helm.linkerd.io/stable
+      chart: linkerd-control-plane
+      targetRevision: 2025.11.3
+      helm:
+        releaseName: linkerd-control-plane
+        valuesObject:
+          identity:
+            issuer:
+              scheme: kubernetes.io/tls
+          controllerReplicas: 1  # Single node K3s
+          controllerResources:
             cpu:
               request: 100m
             memory:
               request: 128Mi
             limit:
-              cpu: 500m
-              memory: 256Mi
-        proxyInjector:
-          externalSecret: true
-          resources:
+              cpu: 1000m
+              memory: 1Gi
+          destinationResources:
             cpu:
               request: 100m
             memory:
               request: 128Mi
             limit:
-              cpu: 500m
-              memory: 256Mi
-        profileValidator:
-          externalSecret: true
-          resources:
-            cpu:
-              request: 100m
-            memory:
-              request: 128Mi
-            limit:
-              cpu: 500m
-              memory: 256Mi
-        disableHeartBeat: false
-        enablePodAntiAffinity: false  # Disabled for single node
+              cpu: 1000m
+              memory: 512Mi
+          proxy:
+            enableExternalProfiles: true
+            resources:
+              cpu:
+                request: 100m
+              memory:
+                request: 128Mi
+              limit:
+                cpu: 500m
+                memory: 256Mi
+          proxyInjector:
+            externalSecret: true
+            resources:
+              cpu:
+                request: 100m
+              memory:
+                request: 128Mi
+              limit:
+                cpu: 500m
+                memory: 256Mi
+          profileValidator:
+            externalSecret: true
+            resources:
+              cpu:
+                request: 100m
+              memory:
+                request: 128Mi
+              limit:
+                cpu: 500m
+                memory: 256Mi
+          disableHeartBeat: false
+          enablePodAntiAffinity: false  # Disabled for single node
+
+    # Source 2: Kustomize Overlay
+    - repoURL: https://github.com/oNddleo/gitops.git
+      targetRevision: HEAD
+      path: infrastructure/linkerd/overlays/dev
   destination:
     server: https://kubernetes.default.svc
     namespace: linkerd

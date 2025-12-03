@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Development environment overlay for Reloader
+resources:
+  - ../../base
+
+namespace: reloader
+
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: reloader
+        labels:
+          environment: dev
+    target:
+      kind: Namespace
+      name: reloader
