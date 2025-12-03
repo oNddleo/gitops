@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: linkerd-viz
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infrastructure
+  source:
+    chart: linkerd-viz
+    repoURL: https://helm.linkerd.io/stable
+    targetRevision: 30.12.11
+    helm:
+      releaseName: linkerd-viz
+      valuesObject:
+        dashboard:
+          replicas: 1  # Single node K3s
+          resources:
+            cpu:
+              request: 50m
+            memory:
+              request: 128Mi
+            limit:
+              cpu: 500m
+              memory: 512Mi
+        prometheus:
+          enabled: true
+          resources:
+            cpu:
+              request: 300m
+            memory:
+              request: 512Mi
+            limit:
+              cpu: 1000m
+              memory: 2Gi
+        grafana:
+          enabled: true
+          resources:
+            cpu:
+              request: 50m
+            memory:
+              request: 128Mi
+            limit:
+              cpu: 500m
+              memory: 512Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: linkerd-viz
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

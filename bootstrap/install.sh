@@ -40,11 +40,12 @@ kubectl apply -f bootstrap/argocd-namespace.yaml
 helm upgrade --install argocd argo/argo-cd \
   --namespace argocd \
   --create-namespace \
-  --set server.service.type=LoadBalancer \
+  --set server.service.type=NodePort \
+  --set server.service.nodePortHttp=30080 \
   --set configs.params."application\.instanceLabelKey"=argocd.argoproj.io/instance \
   --set configs.params."server\.insecure"=true \
-  --wait \
-  --timeout 30s  
+#   --wait \
+#   --timeout 30s  
 
 echo -e "${GREEN}ArgoCD installed successfully!${NC}"
 

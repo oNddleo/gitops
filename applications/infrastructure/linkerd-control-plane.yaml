@@ -1,0 +1,80 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: linkerd-control-plane
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infrastructure
+  source:
+    chart: linkerd-control-plane
+    repoURL: https://helm.linkerd.io/stable
+    targetRevision: 1.16.11
+    helm:
+      releaseName: linkerd-control-plane
+      valuesObject:
+        identity:
+          issuer:
+            scheme: kubernetes.io/tls
+        controllerReplicas: 1  # Single node K3s
+        controllerResources:
+          cpu:
+            request: 100m
+          memory:
+            request: 128Mi
+          limit:
+            cpu: 1000m
+            memory: 1Gi
+        destinationResources:
+          cpu:
+            request: 100m
+          memory:
+            request: 128Mi
+          limit:
+            cpu: 1000m
+            memory: 512Mi
+        proxy:
+          enableExternalProfiles: true
+          resources:
+            cpu:
+              request: 100m
+            memory:
+              request: 128Mi
+            limit:
+              cpu: 500m
+              memory: 256Mi
+        proxyInjector:
+          externalSecret: true
+          resources:
+            cpu:
+              request: 100m
+            memory:
+              request: 128Mi
+            limit:
+              cpu: 500m
+              memory: 256Mi
+        profileValidator:
+          externalSecret: true
+          resources:
+            cpu:
+              request: 100m
+            memory:
+              request: 128Mi
+            limit:
+              cpu: 500m
+              memory: 256Mi
+        disableHeartBeat: false
+        enablePodAntiAffinity: false  # Disabled for single node
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: linkerd
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

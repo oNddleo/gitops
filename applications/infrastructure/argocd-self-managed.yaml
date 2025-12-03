@@ -8,9 +8,86 @@ metadata:
 spec:
   project: infrastructure
   source:
-    repoURL: https://github.com/oNddleo/gitops.git  # UPDATE THIS
-    targetRevision: HEAD
-    path: infrastructure/argocd
+    chart: argo-cd
+    repoURL: https://argoproj.github.io/argo-helm
+    targetRevision: 9.1.5
+    helm:
+      releaseName: argocd
+      valuesObject:
+        global:
+          domain: argocd.example.com
+        controller:
+          replicas: 1  # Single node K3s
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+            requests:
+              cpu: 250m
+              memory: 512Mi
+        server:
+          replicas: 1
+          autoscaling:
+            enabled: false
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          ingress:
+            enabled: false
+        repoServer:
+          replicas: 1
+          autoscaling:
+            enabled: false
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 250m
+              memory: 256Mi
+          env:
+            - name: HELM_EXPERIMENTAL_OCI
+              value: "1"
+            - name: HELM_TLS_INSECURE_SKIP_VERIFY
+              value: "true"
+        redis-ha:
+          enabled: false
+        redis:
+          enabled: true
+        dex:
+          enabled: false
+        notifications:
+          enabled: true
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+        applicationSet:
+          enabled: true
+          replicas: 1
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+        configs:
+          params:
+            server.insecure: "true"
+            application.instanceLabelKey: argocd.argoproj.io/instance
+          cm:
+            kustomize.buildOptions: --enable-helm
+            statusbadge.enabled: "true"
+            timeout.reconciliation: "180s"
+            timeout.hard.reconciliation: "0s"
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

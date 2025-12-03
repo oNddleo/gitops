@@ -1,16 +1,18 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: linkerd
+  name: linkerd-crds
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: infrastructure
   source:
-    repoURL: https://github.com/oNddleo/gitops.git  # UPDATE THIS
-    targetRevision: HEAD
-    path: infrastructure/linkerd
+    chart: linkerd-crds
+    repoURL: https://helm.linkerd.io/stable
+    targetRevision: 1.8.0
+    helm:
+      releaseName: linkerd-crds
   destination:
     server: https://kubernetes.default.svc
     namespace: linkerd
