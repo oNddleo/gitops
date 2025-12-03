@@ -1,0 +1,84 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-traefik-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: traefik
+  url: https://traefik.github.io/charts
+  type: helm
+  enableOCI: "false"
+  insecure: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-stakater-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: stakater
+  url: https://stakater.github.io/stakater-charts
+  type: helm
+  enableOCI: "false"
+  insecure: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-linkerd-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: linkerd
+  url: https://helm.linkerd.io/stable
+  type: helm
+  enableOCI: "false"
+  insecure: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-secrets-store-csi-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: secrets-store-csi
+  url: https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
+  type: helm
+  enableOCI: "false"
+  insecure: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-aws-secrets-provider-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: aws-secrets-provider
+  url: https://aws.github.io/secrets-store-csi-driver-provider-aws
+  type: helm
+  enableOCI: "false"
+  insecure: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-argo-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  name: argo
+  url: https://argoproj.github.io/argo-helm
+  type: helm
+  enableOCI: "false"
+  insecure: "true"
