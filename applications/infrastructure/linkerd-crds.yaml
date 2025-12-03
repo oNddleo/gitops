@@ -10,7 +10,7 @@ spec:
   source:
     chart: linkerd-crds
     repoURL: https://helm.linkerd.io/stable
-    targetRevision: 1.8.0
+    targetRevision: 2025.11.3
     helm:
       releaseName: linkerd-crds
   destination:
