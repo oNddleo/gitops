@@ -206,7 +206,7 @@ jobs:
           else
             git commit -m "chore: update production image to ${{ needs.build-and-push.outputs.image-tag }}
 
-            Co-Authored-By: Claude <noreply@anthropic.com>"
+            Co-Authored-By: Claude <nguyenduclong12a2nd@gmail.com>"
 
             git push
           fi
