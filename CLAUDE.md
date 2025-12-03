@@ -327,7 +327,7 @@ kubectl get application -n argocd | grep -E "Synced|Healthy"
 ## Component Versions
 
 - Kubernetes: 1.28+
-- ArgoCD: 6.7.3
+- ArgoCD: 9.1.5
 - Secrets Store CSI Driver: 1.4.1
 - AWS Secrets Manager Provider: 0.3.7
 - Traefik: v26.0.0
