@@ -18,76 +18,64 @@ spec:
           deployment:
             enabled: true
             kind: Deployment
-            replicas: 1  # Single node K3s
-            podAnnotations:
-              prometheus.io/scrape: "true"
-              prometheus.io/port: "9100"
+            replicas: 2
+            
           service:
             enabled: true
-            type: LoadBalancer
+            type: ClusterIP
+            annotations: {}
+            
+          providers:
+            kubernetesCRD:
+              enabled: true
+              allowCrossNamespace: true
+              allowExternalNameServices: true
+          
           ports:
             web:
               port: 80
               exposedPort: 80
-              protocol: TCP
-            websecure:
-              port: 443
-              exposedPort: 443
-              protocol: TCP
-              tls:
-                enabled: true
-            metrics:
-              port: 9100
-              expose: true
-              exposedPort: 9100
-              protocol: TCP
-          ingressRoute:
-            dashboard:
-              enabled: false
+              expose:
+                default: true
+          # websecure:
+          #   port: 443
+          #   exposedPort: 443
+          #   expose:
+          #     default: true
+          #   # Enable TLS
+          #   tls:
+          #     enabled: true
+          # Traefik dashboard
+          # traefik:
+          #   port: 9000
+          #   expose:
+          #     default: false
+          
           logs:
             general:
               level: INFO
             access:
               enabled: true
-              format: json
+          
           metrics:
             prometheus:
               enabled: true
-              entryPoint: metrics
-              addEntryPointsLabels: true
-              addRoutersLabels: true
-              addServicesLabels: true
+              
           additionalArguments:
-            - "--api.dashboard=true"
-            - "--api.insecure=false"
-            - "--ping=true"
-            - "--providers.kubernetescrd.allowCrossNamespace=true"
-            - "--providers.kubernetescrd.allowExternalNameServices=true"
-            - "--serversTransport.insecureSkipVerify=true"
-          globalArguments:
-            - "--global.checknewversion"
+            - "--api.insecure=true"
+            - "--providers.kubernetescrd"
+            - "--providers.kubernetesingress"
+          
           resources:
             requests:
-              cpu: 100m
-              memory: 128Mi
+              cpu: "100m"
+              memory: "128Mi"
             limits:
-              cpu: 500m
-              memory: 512Mi
-          securityContext:
-            capabilities:
-              drop: [ALL]
-              add: [NET_BIND_SERVICE]
-            readOnlyRootFilesystem: true
-            runAsGroup: 65532
-            runAsNonRoot: true
-            runAsUser: 65532
-          podSecurityContext:
-            fsGroup: 65532
-          autoscaling:
-            enabled: false  # Disabled for single node
-          serviceAccount:
-            create: true
-            name: traefik
+              cpu: "500m"
+              memory: "512Mi"
+          
+          persistence:
+            enabled: false
 
     # Source 2: Kustomize Overlay
     - repoURL: https://github.com/oNddleo/gitops.git

@@ -6,3 +6,4 @@ namespace: linkerd-viz
 resources:
   - namespace.yaml
   - ingress.yaml
+  - rbac-cross-namespace.yaml
