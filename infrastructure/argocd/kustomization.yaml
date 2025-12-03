@@ -152,3 +152,4 @@ helmCharts:
 
 resources:
   - argocd-ingress.yaml
+  - repository-config.yaml

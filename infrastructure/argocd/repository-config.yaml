@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitops-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://github.com/oNddleo/gitops.git
+  insecure: "true"  # Skip TLS verification
+---
+# Alternative: If you want to use SSH instead of HTTPS
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: gitops-repo-ssh
+#   namespace: argocd
+#   labels:
+#     argocd.argoproj.io/secret-type: repository
+# stringData:
+#   type: git
+#   url: git@github.com:oNddleo/gitops.git
+#   sshPrivateKey: |
+#     -----BEGIN OPENSSH PRIVATE KEY-----
+#     <your-private-key-here>
+#     -----END OPENSSH PRIVATE KEY-----
