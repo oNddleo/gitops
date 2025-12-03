@@ -15,6 +15,37 @@ spec:
       helm:
         releaseName: linkerd-control-plane
         valuesObject:
+          identityTrustAnchorsPEM: |
+            -----BEGIN CERTIFICATE-----
+            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
+            -----END CERTIFICATE-----
           identity:
             issuer:
               scheme: kubernetes.io/tls
