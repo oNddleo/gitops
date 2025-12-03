@@ -42,8 +42,9 @@ helm upgrade --install argocd argo/argo-cd \
   --create-namespace \
   --set server.service.type=LoadBalancer \
   --set configs.params."application\.instanceLabelKey"=argocd.argoproj.io/instance \
+  --set configs.params."server\.insecure"=true \
   --wait \
-  --timeout 30s
+  --timeout 30s  
 
 echo -e "${GREEN}ArgoCD installed successfully!${NC}"
 
