@@ -22,8 +22,14 @@ This is a production-ready GitOps Kubernetes platform on AWS EKS implementing a 
 
 ### App of Apps Pattern
 The platform uses hierarchical application management:
-- `bootstrap/root-app.yaml` - Bootstraps the entire platform
-- `applications/infrastructure-apps.yaml` - Manages all infrastructure components
+- `bootstrap/root-app.yaml` - Root Application pointing to `applications/infrastructure/`
+- `applications/infrastructure/` - Individual ArgoCD Application manifests for each infrastructure component
+  - `00-project.yaml` - Infrastructure project definition
+  - `argocd-self-managed.yaml` - ArgoCD self-management
+  - `linkerd.yaml` - Service mesh
+  - `traefik.yaml` - Ingress controller
+  - `secrets-store-csi.yaml` - CSI driver
+  - `reloader.yaml` - Config reloader
 - `applications/app-of-apps-{env}.yaml` - Manages applications per environment (dev/staging/production)
 
 ## Directory Structure
@@ -40,10 +46,18 @@ gitops/
 │   ├── linkerd/            # Service mesh with mTLS
 │   ├── reloader/           # Automatic pod updates on config changes
 │   └── argocd/             # Self-managed ArgoCD configuration
-├── applications/           # Application deployment manifests
-│   ├── infrastructure-apps.yaml  # Infrastructure App of Apps
+├── applications/           # ArgoCD Application manifests
+│   ├── infrastructure/     # Infrastructure component Applications
+│   │   ├── 00-project.yaml
+│   │   ├── argocd-self-managed.yaml
+│   │   ├── linkerd.yaml
+│   │   ├── traefik.yaml
+│   │   ├── secrets-store-csi.yaml
+│   │   └── reloader.yaml
 │   ├── app-of-apps-{env}.yaml   # Per-environment App of Apps
-│   └── {env}/              # Environment-specific application manifests
+│   ├── dev/                # Development application manifests
+│   ├── staging/            # Staging application manifests
+│   └── production/         # Production application manifests
 ├── charts/                 # Helm charts for microservices
 │   └── my-microservice/
 │       ├── templates/      # Kubernetes manifests (Deployment, Service, etc.)
@@ -228,6 +242,19 @@ helmCharts:
     valuesInline:
       # Helm values here
 ```
+
+**CRITICAL**: All ArgoCD Applications that reference infrastructure components using Kustomize with Helm charts **MUST** include the `--enable-helm` build option:
+
+```yaml
+# applications/infrastructure/{component}.yaml
+spec:
+  source:
+    path: infrastructure/{component}
+    kustomize:
+      buildOptions: --enable-helm  # REQUIRED for Helm chart inflation
+```
+
+Without this, ArgoCD will fail with: `must specify --enable-helm`
 
 To update a component version:
 1. Edit `infrastructure/{component}/kustomization.yaml`
