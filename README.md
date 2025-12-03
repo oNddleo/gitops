@@ -71,7 +71,7 @@ This platform implements a complete GitOps workflow where:
 | Component | Technology | Version | Purpose |
 |-----------|-----------|---------|---------|
 | **Orchestration** | Amazon EKS | 1.28+ | Managed Kubernetes control plane |
-| **GitOps** | ArgoCD | 9.1.5 | Continuous deployment operator |
+| **GitOps** | ArgoCD | 9.0.6 | Continuous deployment operator |
 | **Package Manager** | Helm | 3.14+ | Application packaging |
 | **Configuration** | Kustomize | 5.0+ | Environment-specific overlays |
 | **Secrets** | AWS Secrets Manager | - | Fully managed secrets service |
