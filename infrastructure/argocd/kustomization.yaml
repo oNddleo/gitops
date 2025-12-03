@@ -122,6 +122,7 @@ helmCharts:
         params:
           server.insecure: false
           application.instanceLabelKey: argocd.argoproj.io/instance
+          kustomize.buildOptions: --enable-helm
 
         cm:
           # Enable status badge
