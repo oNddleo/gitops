@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik-hybrid-example
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: infrastructure
+  sources:
+    # Source 1: Helm Chart (direct from registry - no TLS issues!)
+    - repoURL: https://traefik.github.io/charts
+      chart: traefik
+      targetRevision: 26.0.0
+      helm:
+        releaseName: traefik
+        valuesObject:
+          deployment:
+            enabled: true
+            kind: Deployment
+            replicas: 1
+          service:
+            enabled: true
+            type: LoadBalancer
+          ports:
+            web:
+              port: 80
+            websecure:
+              port: 443
+              tls:
+                enabled: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          # Minimal Helm values - additional config comes from Kustomize
+
+    # Source 2: Kustomize Overlay (additional resources)
+    - repoURL: https://github.com/oNddleo/gitops.git
+      targetRevision: HEAD
+      path: infrastructure/traefik-overlay/overlays/dev
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: traefik
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
