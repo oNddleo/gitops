@@ -135,8 +135,8 @@ Visual representation of the complete GitOps platform architecture.
         ├─▶ secrets-store-csi-driver-provider-aws.yaml│       │
         ├─▶ traefik.yaml                              │       ├─▶ staging/vsf-miniapp-service-a.yaml
         └─▶ reloader.yaml                             │       └─▶ staging/vsf-miniapp-service-b.yaml
-                                                       │
-                                                       └─▶ app-of-apps-production.yaml
+                                                      │
+                                                      └─▶ app-of-apps-production.yaml
                                                                │
                                                                ├─▶ production/vsf-miniapp-service-a.yaml
                                                                └─▶ production/vsf-miniapp-service-b.yaml
