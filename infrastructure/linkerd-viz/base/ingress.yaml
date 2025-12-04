@@ -1,4 +1,4 @@
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
   name: linkerd-viz-dashboard
@@ -21,7 +21,7 @@ spec:
   tls:
     secretName: linkerd-viz-tls
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: linkerd-auth
@@ -42,7 +42,7 @@ stringData:
   users: |
     admin:$apr1$H6uskkkW$IgXLP6ewTrSuBkTrqE8wj/
 ---
-apiVersion: traefik.containo.us/v1alpha1
+apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
   name: linkerd-ipwhitelist

@@ -16,9 +16,9 @@ spec:
         valuesObject:
           installCRDs: true
           prometheus:
-            enabled: true
+            enabled: false
             servicemonitor:
-              enabled: true
+              enabled: false
     - repoURL: https://github.com/oNddleo/gitops.git
       targetRevision: HEAD
       path: infrastructure/cert-manager/overlays/dev
