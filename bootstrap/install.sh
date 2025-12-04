@@ -43,9 +43,7 @@ helm upgrade --install argocd argo/argo-cd \
   --set server.service.type=NodePort \
   --set server.service.nodePortHttp=30080 \
   --set configs.params."application\.instanceLabelKey"=argocd.argoproj.io/instance \
-  --set configs.params."server\.insecure"=true \
-#   --wait \
-#   --timeout 30s  
+  --set configs.params."server\.insecure"=true
 
 echo -e "${GREEN}ArgoCD installed successfully!${NC}"
 
@@ -78,6 +76,38 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 1
 fi
 
+# Configure repo as insecure (handle self-signed certs)
+echo -e "\n${YELLOW}Configuring repository as insecure (skipping SSL verification)...${NC}"
+REPO_URL=$(grep "repoURL:" bootstrap/root-app.yaml | awk '{print $2}' | head -n 1)
+
+if [ -n "$REPO_URL" ]; then
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-gitops-insecure
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: "$REPO_URL"
+  insecure: "true"
+  type: "git"
+EOF
+    echo -e "${GREEN}Repository configured as insecure.${NC}"
+else
+    echo -e "${RED}Could not determine repoURL. Skipping insecure config.${NC}"
+fi
+
+# Pre-configure Helm repositories (fixes x509 errors for charts)
+echo -e "\n${YELLOW}Pre-loading insecure Helm repository configurations...${NC}"
+if [ -f "infrastructure/argocd/base/helm-repositories.yaml" ]; then
+    kubectl apply -f infrastructure/argocd/base/helm-repositories.yaml
+    echo -e "${GREEN}Helm repositories configured.${NC}"
+else
+    echo -e "${RED}Warning: infrastructure/argocd/base/helm-repositories.yaml not found. Sync errors may occur.${NC}"
+fi
+
 kubectl apply -f bootstrap/root-app.yaml
 
 echo -e "\n${GREEN}======================================"
@@ -85,6 +115,16 @@ echo -e @"Bootstrap Complete!"
 echo -e "======================================${NC}"
 echo -e "ArgoCD is now managing the cluster via GitOps."
 echo -e "All infrastructure components will be deployed automatically."
+
+# Trigger initial sync
+echo -e "\n${YELLOW}Triggering initial hard refresh of applications...${NC}"
+if [ -f "scripts/patch-argocd-apps.sh" ]; then
+    chmod +x scripts/patch-argocd-apps.sh
+    ./scripts/patch-argocd-apps.sh refresh
+else
+    echo "Patch script not found, skipping initial refresh."
+fi
+
 echo -e "\nNext steps:"
 echo -e "1. Login to ArgoCD UI at https://${ARGOCD_SERVER}"
 echo -e "2. Monitor the application sync status"
