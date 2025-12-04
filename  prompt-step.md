@@ -156,3 +156,116 @@ Merge the relevant deployment steps from all files markdown into `README.md` to 
 4.  **Cleanup:** Fix any broken links or table of contents entries resulting from these removals.
 
 Output the updated content for the merged file.I need to refactor the project documentation to reflect our architectural changes.
+
+---
+# Prompt: 
+# **Claude Code Prompt: GitOps Implementation with Helm + Kustomize + ArgoCD**
+
+## **Context**
+You are an expert Kubernetes and GitOps engineer. I need you to generate a complete GitOps implementation using ArgoCD, Helm charts, and Kustomize following App of Apps pattern. The system should support multiple microservices with Linkerd mTLS integration and AWS Secrets Manager for database connections.
+
+## **Requirements**
+
+### **1. Project Structure**
+Generate this exact directory structure:
+```
+gitops/
+├── bootstrap/
+│   ├── install.sh
+│   ├── argocd-namespace.yaml
+│   └── root-app.yaml
+├── infrastructure/
+│   ├── secrets-store-csi/
+│   ├── traefik/
+│   ├── linkerd/
+│   ├── reloader/
+│   └── argocd/
+├── applications/
+│   ├── infrastructure/
+│   │   ├── 00-project.yaml
+│   │   ├── argocd-self-managed.yaml
+│   │   ├── linkerd.yaml
+│   │   ├── traefik.yaml
+│   │   ├── secrets-store-csi.yaml
+│   │   └── reloader.yaml
+│   ├── app-of-apps-{env}.yaml
+│   ├── dev/
+│   ├── staging/
+│   └── production/
+├── charts/
+│   └── vsf-miniapp/
+│       ├── templates/
+│       ├── values.yaml
+│       └── ci/
+└── .github/workflows/
+```
+
+### **2. Core Requirements**
+- **App of Apps pattern**: Root application that manages all other applications
+- **Multi-service microservice**: `vsf-miniapp` containing serviceA, serviceB, etc.
+- **Linkerd mTLS**: Each service must have proper Linkerd sidecar injection with mTLS enabled
+- **AWS Secrets Manager**: Database credentials must come from AWS Secrets Manager via CSI driver
+- **Helm + Kustomize**: Use Helm charts for templating, Kustomize for environment overlays
+
+### **3. Specific Implementation Requests**
+
+#### **3.1 Helm Chart Strategy**
+- Should we create separate Helm charts for each programming language (Java, Node.js, Python) or use a base chart with language-specific overlays?
+- How to structure the chart to support both language-specific configurations and shared base configurations?
+- Show the optimal approach with examples.
+
+#### **3.2 Linkerd Integration**
+- Generate complete Linkerd mTLS setup configuration
+- Show how to inject Linkerd into each microservice deployment
+- Include certificate management and security policies
+- Demonstrate proper annotation for database ports exclusion
+
+#### **3.3 AWS Secrets Manager Integration**
+- Create complete AWS Secrets Manager CSI driver setup
+- Show how to mount database secrets into containers
+- Include IAM role/service account configuration for EKS
+- Provide secret rotation strategy
+
+#### **3.4 Application Structure**
+- Generate complete `app-of-apps-{env}.yaml` files for dev, staging, production
+- Create service-specific Application manifests for serviceA and serviceB
+- Show environment-specific value overrides using Kustomize patches
+- Demonstrate namespace segregation per service per environment
+
+#### **3.5 Microservice Organization**
+- How to structure multiple services under `my-microservice`:
+  - Should each service have its own Application manifest?
+  - How to share common configurations across services?
+  - How to handle service dependencies and ordering?
+
+### **4. Output Format**
+Generate complete, production-ready YAML/configuration files for:
+1. **Bootstrap files** (install.sh, root-app.yaml)
+2. **Infrastructure components** (Linkerd with mTLS, Secrets Manager CSI, Traefik)
+3. **Application manifests** for App of Apps pattern
+4. **Helm chart structure** for multi-language support
+5. **Kustomize overlays** for environment differentiation
+6. **CI/CD workflow** examples for GitHub Actions
+
+### **5. Key Considerations**
+- **Security**: mTLS between all services, encrypted secrets
+- **Scalability**: Easy to add new services or new environments
+- **Maintainability**: Clear separation of concerns, minimal duplication
+- **GitOps principles**: Everything as code, declarative configuration
+- **Best practices**: Follow Kubernetes and CNCF best practices
+
+## **Expected Output**
+Provide complete file contents for the most critical files, and explain the architecture decisions. Focus on:
+1. How Helm and Kustomize work together in this setup
+2. How Linkerd mTLS is implemented per service
+3. How database connections are secured with AWS Secrets Manager
+4. How the App of Apps pattern manages the entire deployment
+
+## **Constraints**
+- Use ArgoCD Application CRDs
+- Support EKS or any Kubernetes 1.24+
+- Assume AWS as cloud provider
+- Include error handling and validation where appropriate
+- Include comments explaining key configuration decisions
+
+**Generate the complete implementation following these specifications.**

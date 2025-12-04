@@ -1,0 +1,341 @@
+# Service A - Java Spring Boot Application (Production)
+# This file demonstrates how to configure a Java-based microservice
+# using the shared vsf-miniapp Helm chart
+
+# ============================================================================
+# Service Identity
+# ============================================================================
+serviceName: service-a
+language: java
+runtime: openjdk-17
+
+# ============================================================================
+# Container Image
+# ============================================================================
+image:
+  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-a
+  tag: "1.0.0"  # Updated by CI/CD pipeline
+  pullPolicy: IfNotPresent
+
+# ============================================================================
+# Scaling Configuration
+# ============================================================================
+replicaCount: 5  # Production requires higher availability
+
+autoscaling:
+  enabled: true
+  minReplicas: 5
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# ============================================================================
+# Service Configuration
+# ============================================================================
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080  # Spring Boot default port
+  annotations:
+    # Linkerd will automatically handle load balancing
+    linkerd.io/inject: enabled
+
+# ============================================================================
+# Resource Management (Java requires more memory)
+# ============================================================================
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi  # Java heap + metaspace
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+# ============================================================================
+# Environment Variables (Java-specific)
+# ============================================================================
+env:
+  # JVM Configuration
+  - name: JAVA_OPTS
+    value: "-Xmx768m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+
+  # Spring Boot Configuration
+  - name: SPRING_PROFILES_ACTIVE
+    value: "production"
+  - name: SERVER_PORT
+    value: "8080"
+  - name: MANAGEMENT_SERVER_PORT
+    value: "8081"
+
+  # Application Configuration
+  - name: APP_NAME
+    value: "service-a"
+  - name: LOG_LEVEL
+    value: "info"
+  - name: ENABLE_METRICS
+    value: "true"
+
+# Environment variables from ConfigMap and Secrets
+envFrom:
+  - configMapRef:
+      name: service-a-config
+  - secretRef:
+      name: service-a-secrets  # Synced from AWS Secrets Manager
+
+# ============================================================================
+# Health Probes (Spring Boot Actuator endpoints)
+# ============================================================================
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8081
+  initialDelaySeconds: 60  # Java startup is slower
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8081
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# ============================================================================
+# Pod Annotations (Linkerd, Reloader)
+# ============================================================================
+podAnnotations:
+  # Enable Linkerd sidecar injection for mTLS
+  linkerd.io/inject: enabled
+
+  # Skip database and message broker ports from Linkerd proxy
+  # This allows databases to handle their own TLS
+  config.linkerd.io/skip-outbound-ports: "5432,3306,9092"
+
+  # Enable Reloader to watch ConfigMaps and Secrets
+  reloader.stakater.com/auto: "true"
+
+  # Prometheus metrics scraping
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8081"
+  prometheus.io/path: "/actuator/prometheus"
+
+# ============================================================================
+# Service Account (IRSA for AWS Secrets Manager access)
+# ============================================================================
+serviceAccount:
+  create: true
+  annotations:
+    # IAM Role for Service Account (IRSA) - allows access to AWS Secrets Manager
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-a-secrets-reader"
+  name: "service-a"
+
+# ============================================================================
+# AWS Secrets Manager Integration
+# ============================================================================
+secretsManager:
+  enabled: true
+  region: us-east-1
+  mountPath: /mnt/secrets
+
+  # Secrets to fetch from AWS Secrets Manager
+  objects:
+    # PostgreSQL Database Credentials
+    - objectName: "production/vsf-miniapp/service-a/database"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: url
+          objectAlias: database-url
+        - path: username
+          objectAlias: database-username
+        - path: password
+          objectAlias: database-password
+        - path: maxPoolSize
+          objectAlias: database-max-pool-size
+
+    # Kafka Credentials
+    - objectName: "production/vsf-miniapp/service-a/kafka"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: brokers
+          objectAlias: kafka-brokers
+        - path: username
+          objectAlias: kafka-username
+        - path: password
+          objectAlias: kafka-password
+
+    # External API Keys
+    - objectName: "production/vsf-miniapp/service-a/external-api"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: apiKey
+          objectAlias: external-api-key
+        - path: apiSecret
+          objectAlias: external-api-secret
+
+  # Sync secrets to Kubernetes Secret for environment variables
+  syncToKubernetesSecret: true
+
+  # Map AWS secret fields to Kubernetes Secret keys
+  secretData:
+    - objectName: database-url
+      key: DATABASE_URL
+    - objectName: database-username
+      key: DATABASE_USERNAME
+    - objectName: database-password
+      key: DATABASE_PASSWORD
+    - objectName: database-max-pool-size
+      key: DATABASE_MAX_POOL_SIZE
+    - objectName: kafka-brokers
+      key: KAFKA_BROKERS
+    - objectName: kafka-username
+      key: KAFKA_USERNAME
+    - objectName: kafka-password
+      key: KAFKA_PASSWORD
+    - objectName: external-api-key
+      key: EXTERNAL_API_KEY
+    - objectName: external-api-secret
+      key: EXTERNAL_API_SECRET
+
+# ============================================================================
+# ConfigMap (Non-sensitive configuration)
+# ============================================================================
+configMap:
+  enabled: true
+  data:
+    application.properties: |
+      # Spring Boot Configuration
+      server.port=8080
+      management.server.port=8081
+      management.endpoints.web.exposure.include=health,info,prometheus,metrics
+      management.endpoint.health.probes.enabled=true
+
+      # Logging
+      logging.level.root=INFO
+      logging.level.com.vsf.miniapp.servicea=DEBUG
+      logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss} - %msg%n
+
+      # Database Connection Pool
+      spring.datasource.hikari.minimum-idle=5
+      spring.datasource.hikari.maximum-pool-size=${DATABASE_MAX_POOL_SIZE}
+      spring.datasource.hikari.idle-timeout=300000
+      spring.datasource.hikari.connection-timeout=20000
+
+      # Feature Flags
+      feature.kafka.enabled=true
+      feature.cache.enabled=true
+      feature.metrics.enabled=true
+
+# ============================================================================
+# Ingress Configuration (Traefik IngressRoute)
+# ============================================================================
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    # Traefik middleware for rate limiting
+    traefik.ingress.kubernetes.io/router.middlewares: production-rate-limit@kubernetescrd
+  hosts:
+    - host: service-a.vsf-miniapp.com
+      paths:
+        - path: /api/v1/service-a
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: vsf-miniapp-tls
+
+# ============================================================================
+# Monitoring (Prometheus ServiceMonitor)
+# ============================================================================
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /actuator/prometheus
+    port: metrics
+    labels:
+      prometheus: kube-prometheus
+
+# ============================================================================
+# Pod Disruption Budget (High Availability)
+# ============================================================================
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 3  # Always keep at least 3 pods running during disruptions
+
+# ============================================================================
+# Affinity Rules (Multi-AZ deployment)
+# ============================================================================
+affinity:
+  # Prefer spreading pods across different nodes
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - vsf-miniapp
+              - key: service
+                operator: In
+                values:
+                  - service-a
+          topologyKey: kubernetes.io/hostname
+
+      # Prefer spreading across availability zones
+      - weight: 90
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - vsf-miniapp
+              - key: service
+                operator: In
+                values:
+                  - service-a
+          topologyKey: topology.kubernetes.io/zone
+
+# ============================================================================
+# Security Context
+# ============================================================================
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+# ============================================================================
+# Additional Volumes and Mounts
+# ============================================================================
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+  - name: cache
+    mountPath: /app/cache
+  - name: logs
+    mountPath: /app/logs
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+  - name: cache
+    emptyDir: {}
+  - name: logs
+    emptyDir: {}

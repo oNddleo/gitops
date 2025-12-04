@@ -1,0 +1,155 @@
+# ArgoCD Application Manifest for Service A (Production)
+# This manifest deploys Service A using the shared vsf-miniapp Helm chart
+# with production-specific values
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vsf-miniapp-service-a-production
+  namespace: argocd
+  finalizers:
+    # Ensure cascading deletion of resources when app is deleted
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    # Labels for organization and filtering
+    environment: production
+    app: vsf-miniapp
+    service: service-a
+    language: java
+    team: platform
+  annotations:
+    # Notifications configuration (if using ArgoCD notifications)
+    notifications.argoproj.io/subscribe.on-sync-succeeded.slack: production-deployments
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: production-alerts
+
+spec:
+  # Project name (use 'default' or create a custom project)
+  project: default
+
+  # Source configuration - where to find the Helm chart
+  source:
+    # Git repository URL
+    repoURL: https://github.com/oNddleo/gitops.git
+    targetRevision: HEAD  # Use 'main' branch, or specific tag/commit
+    path: charts/vsf-miniapp  # Path to the shared Helm chart
+
+    helm:
+      # Primary values file for this service
+      valueFiles:
+        - ci/service-a-production.yaml
+
+      # Additional inline value overrides (optional)
+      # These take precedence over valueFiles
+      values: |
+        # Override replica count if needed
+        replicaCount: 5
+
+        # Override image tag (typically updated by CI/CD)
+        image:
+          repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-a
+          tag: "1.0.0"
+
+        # Override ingress host
+        ingress:
+          enabled: true
+          hosts:
+            - host: service-a.vsf-miniapp.com
+              paths:
+                - path: /api/v1/service-a
+                  pathType: Prefix
+
+      # Helm parameters (alternative to values)
+      # parameters:
+      #   - name: replicaCount
+      #     value: "5"
+
+      # Release name (defaults to app name if not specified)
+      releaseName: service-a
+
+  # Destination - where to deploy
+  destination:
+    # Kubernetes API server (in-cluster by default)
+    server: https://kubernetes.default.svc
+
+    # Target namespace
+    namespace: production
+
+  # Sync policy - how ArgoCD manages the application
+  syncPolicy:
+    # Automated sync configuration
+    automated:
+      # Automatically delete resources no longer in Git
+      prune: true
+
+      # Automatically sync when Git changes are detected
+      selfHeal: true
+
+      # Prevent deletion of all resources when app is empty
+      allowEmpty: false
+
+    # Sync options
+    syncOptions:
+      # Create namespace if it doesn't exist
+      - CreateNamespace=true
+
+      # Prune resources in foreground (delete in dependency order)
+      - PrunePropagationPolicy=foreground
+
+      # Prune resources last (after creating/updating)
+      - PruneLast=true
+
+      # Replace resources instead of applying (useful for immutable fields)
+      # - Replace=true
+
+      # Validate YAML schemas
+      - Validate=true
+
+      # Apply out of sync only (don't sync unchanged resources)
+      - ApplyOutOfSyncOnly=true
+
+    # Retry configuration for failed syncs
+    retry:
+      limit: 5  # Maximum retry attempts
+      backoff:
+        duration: 5s    # Initial retry delay
+        factor: 2       # Exponential backoff factor
+        maxDuration: 3m # Maximum retry delay
+
+  # Health assessment configuration
+  ignoreDifferences:
+    # Ignore replica count differences (HPA manages this)
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+
+    # Ignore Linkerd proxy injected resources
+    - group: ""
+      kind: Secret
+      name: linkerd-proxy-injector-k8s-tls
+      jsonPointers:
+        - /data
+
+  # Application info (metadata for UI)
+  info:
+    - name: 'Environment'
+      value: 'Production'
+    - name: 'Service'
+      value: 'Service A (Java Spring Boot)'
+    - name: 'Owner'
+      value: 'Platform Team'
+    - name: 'Slack Channel'
+      value: '#production-alerts'
+    - name: 'Documentation'
+      value: 'https://wiki.company.com/vsf-miniapp/service-a'
+    - name: 'Repository'
+      value: 'https://github.com/oNddleo/vsf-miniapp-service-a'
+
+  # Sync wave (order of deployment)
+  # Lower numbers sync first
+  # Default is 0
+  # Use negative numbers for dependencies (e.g., -1 for databases)
+  # Use positive numbers for dependents (e.g., 1 for applications)
+  metadata:
+    annotations:
+      argocd.argoproj.io/sync-wave: "1"

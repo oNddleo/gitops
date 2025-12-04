@@ -1,0 +1,282 @@
+# Service B - Node.js Express Application (Production)
+# This file demonstrates how to configure a Node.js-based microservice
+# using the shared vsf-miniapp Helm chart
+
+# ============================================================================
+# Service Identity
+# ============================================================================
+serviceName: service-b
+language: nodejs
+runtime: node-20
+
+# ============================================================================
+# Container Image
+# ============================================================================
+image:
+  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-b
+  tag: "1.0.0"  # Updated by CI/CD pipeline
+  pullPolicy: IfNotPresent
+
+# ============================================================================
+# Scaling Configuration
+# ============================================================================
+replicaCount: 3  # Node.js is lightweight, fewer replicas needed
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 15
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 80
+
+# ============================================================================
+# Service Configuration
+# ============================================================================
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000  # Express default port
+  annotations:
+    linkerd.io/inject: enabled
+
+# ============================================================================
+# Resource Management (Node.js is lighter than Java)
+# ============================================================================
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# ============================================================================
+# Environment Variables (Node.js-specific)
+# ============================================================================
+env:
+  # Node.js Configuration
+  - name: NODE_ENV
+    value: "production"
+  - name: PORT
+    value: "3000"
+  - name: NODE_OPTIONS
+    value: "--max-old-space-size=400 --enable-source-maps"
+
+  # Application Configuration
+  - name: APP_NAME
+    value: "service-b"
+  - name: LOG_LEVEL
+    value: "info"
+  - name: METRICS_ENABLED
+    value: "true"
+
+  # Express Configuration
+  - name: TRUST_PROXY
+    value: "true"
+  - name: MAX_REQUEST_SIZE
+    value: "10mb"
+
+# Environment variables from ConfigMap and Secrets
+envFrom:
+  - configMapRef:
+      name: service-b-config
+  - secretRef:
+      name: service-b-secrets  # Synced from AWS Secrets Manager
+
+# ============================================================================
+# Health Probes (Express endpoints)
+# ============================================================================
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 3000
+  initialDelaySeconds: 15  # Node.js starts faster than Java
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+# ============================================================================
+# Pod Annotations
+# ============================================================================
+podAnnotations:
+  linkerd.io/inject: enabled
+  config.linkerd.io/skip-outbound-ports: "27017,6379"  # MongoDB, Redis
+  reloader.stakater.com/auto: "true"
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3000"
+  prometheus.io/path: "/metrics"
+
+# ============================================================================
+# Service Account
+# ============================================================================
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-b-secrets-reader"
+  name: "service-b"
+
+# ============================================================================
+# AWS Secrets Manager Integration
+# ============================================================================
+secretsManager:
+  enabled: true
+  region: us-east-1
+  mountPath: /mnt/secrets
+
+  objects:
+    # MongoDB Credentials
+    - objectName: "production/vsf-miniapp/service-b/mongodb"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: connectionString
+          objectAlias: mongodb-uri
+        - path: database
+          objectAlias: mongodb-database
+
+    # Redis Credentials
+    - objectName: "production/vsf-miniapp/service-b/redis"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: host
+          objectAlias: redis-host
+        - path: port
+          objectAlias: redis-port
+        - path: password
+          objectAlias: redis-password
+
+    # JWT Secret
+    - objectName: "production/vsf-miniapp/service-b/jwt"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: secret
+          objectAlias: jwt-secret
+        - path: issuer
+          objectAlias: jwt-issuer
+
+  syncToKubernetesSecret: true
+  secretData:
+    - objectName: mongodb-uri
+      key: MONGODB_URI
+    - objectName: mongodb-database
+      key: MONGODB_DATABASE
+    - objectName: redis-host
+      key: REDIS_HOST
+    - objectName: redis-port
+      key: REDIS_PORT
+    - objectName: redis-password
+      key: REDIS_PASSWORD
+    - objectName: jwt-secret
+      key: JWT_SECRET
+    - objectName: jwt-issuer
+      key: JWT_ISSUER
+
+# ============================================================================
+# ConfigMap
+# ============================================================================
+configMap:
+  enabled: true
+  data:
+    config.json: |
+      {
+        "server": {
+          "port": 3000,
+          "host": "0.0.0.0"
+        },
+        "logging": {
+          "level": "info",
+          "format": "json"
+        },
+        "cors": {
+          "enabled": true,
+          "origins": ["https://vsf-miniapp.com"]
+        },
+        "rateLimit": {
+          "windowMs": 900000,
+          "max": 100
+        }
+      }
+
+# ============================================================================
+# Ingress Configuration
+# ============================================================================
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: service-b.vsf-miniapp.com
+      paths:
+        - path: /api/v1/service-b
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: vsf-miniapp-tls
+
+# ============================================================================
+# Monitoring
+# ============================================================================
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+    port: http
+
+# ============================================================================
+# Affinity Rules
+# ============================================================================
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: service
+                operator: In
+                values:
+                  - service-b
+          topologyKey: kubernetes.io/hostname
+
+# ============================================================================
+# Security Context
+# ============================================================================
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+  - name: cache
+    mountPath: /app/cache
+
+volumes:
+  - name: tmp
+    emptyDir: {}
+  - name: cache
+    emptyDir: {}
