@@ -30,3 +30,15 @@ spec:
   compress:
     excludedContentTypes:
       - text/event-stream
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: https-redirect
+  namespace: traefik
+  labels:
+    app: traefik
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
