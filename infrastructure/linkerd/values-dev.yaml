@@ -8,6 +8,9 @@ identity:
     # The Linkerd Helm chart will look for a Secret named linkerd-identity-issuer
     # in the linkerd namespace. This Secret should be type kubernetes.io/tls
     # and contain 'tls.crt' and 'tls.key'.
+  # NOTE: Trust anchor is dynamically injected by trust-anchor-sync-job
+  # The job runs as an ArgoCD PreSync hook and creates the linkerd-identity-trust-roots
+  # ConfigMap from the linkerd-trust-anchor secret created by cert-manager
 
 controllerReplicas: 1
 enablePodAntiAffinity: false

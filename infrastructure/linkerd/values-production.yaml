@@ -5,6 +5,9 @@ identity:
   externalCA: true
   externalIssuer:
     certificate: linkerd-identity-issuer # Cert-manager created secret for intermediate issuer
+  # NOTE: Trust anchor is dynamically injected by trust-anchor-sync-job
+  # The job runs as an ArgoCD PreSync hook and creates the linkerd-identity-trust-roots
+  # ConfigMap from the linkerd-trust-anchor secret created by cert-manager
 
 controllerReplicas: 3
 enablePodAntiAffinity: true

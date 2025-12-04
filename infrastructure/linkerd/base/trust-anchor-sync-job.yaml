@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: linkerd-cert-sync
+  namespace: linkerd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: linkerd-cert-sync
+  namespace: linkerd
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["linkerd-trust-anchor"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: linkerd-cert-sync
+  namespace: linkerd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: linkerd-cert-sync
+subjects:
+- kind: ServiceAccount
+  name: linkerd-cert-sync
+  namespace: linkerd
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: linkerd-trust-anchor-sync
+  namespace: linkerd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    metadata:
+      name: linkerd-trust-anchor-sync
+    spec:
+      serviceAccountName: linkerd-cert-sync
+      restartPolicy: OnFailure
+      containers:
+      - name: sync
+        image: alpine/k8s:1.28.3
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Waiting for linkerd-trust-anchor secret to be ready..."
+          until kubectl get secret linkerd-trust-anchor -n linkerd 2>/dev/null; do
+            echo "Secret not found, waiting..."
+            sleep 2
+          done
+
+          echo "Extracting trust anchor certificate from secret..."
+          CERT=$(kubectl get secret linkerd-trust-anchor -n linkerd -o jsonpath='{.data.tls\.crt}' | base64 -d)
+
+          if [ -z "$CERT" ]; then
+            echo "ERROR: Certificate is empty!"
+            exit 1
+          fi
+
+          echo "Creating linkerd-identity-trust-roots ConfigMap with trust anchor..."
+          kubectl create configmap linkerd-identity-trust-roots -n linkerd \
+            --from-literal=ca-bundle.crt="$CERT" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          echo "Trust anchor ConfigMap created/updated successfully"
+          kubectl get configmap linkerd-identity-trust-roots -n linkerd -o yaml | head -20

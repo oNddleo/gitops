@@ -3,6 +3,8 @@ kind: Issuer
 metadata:
   name: linkerd-self-signed-issuer
   namespace: linkerd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   selfSigned: {}
 ---
@@ -11,6 +13,8 @@ kind: Certificate
 metadata:
   name: linkerd-trust-anchor
   namespace: linkerd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   isCA: true
   commonName: root.linkerd.cluster.local
@@ -30,6 +34,8 @@ kind: Issuer
 metadata:
   name: linkerd-trust-anchor-issuer
   namespace: linkerd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   ca:
     secretName: linkerd-trust-anchor
@@ -39,6 +45,8 @@ kind: Certificate
 metadata:
   name: linkerd-identity-issuer
   namespace: linkerd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   secretName: linkerd-identity-issuer
   commonName: identity.linkerd.cluster.local
