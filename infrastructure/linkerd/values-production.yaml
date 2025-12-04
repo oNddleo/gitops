@@ -17,6 +17,9 @@ identity:
     pr/vBDVwlyto6wSGew7EjAMKsTZKwxaMqc8LNwIhAInsJ/063dxhiVvIy8RgbdLU
     eTH7ALhvGipzLQyEcZOh
     -----END CERTIFICATE-----
+    # NOTE: This certificate is extracted from the linkerd-trust-anchor secret
+    # created by cert-manager. It is valid for 10 years (expires 2035-12-02).
+    # To update: kubectl get secret linkerd-trust-anchor -n linkerd -o jsonpath='{.data.tls\.crt}' | base64 -d
 
 controllerReplicas: 3
 enablePodAntiAffinity: true

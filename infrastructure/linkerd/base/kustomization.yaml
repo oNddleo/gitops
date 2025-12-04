@@ -6,4 +6,4 @@ namespace: linkerd
 resources:
   - linkerd-issuer.yaml
   - namespace.yaml
-  - trust-root.yaml
+  # trust-anchor-sync-job.yaml - Reserved for future dynamic certificate injection implementation
