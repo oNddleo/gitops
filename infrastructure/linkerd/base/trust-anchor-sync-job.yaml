@@ -71,19 +71,10 @@ spec:
             exit 1
           fi
 
-          echo "Creating Helm values ConfigMap with trust anchor..."
-          cat <<EOF | kubectl apply -f -
-          apiVersion: v1
-          kind: ConfigMap
-          metadata:
-            name: linkerd-trust-anchor-values
-            namespace: linkerd
-          data:
-            trust-anchor.yaml: |
-              identity:
-                trustAnchorsPEM: |
-          $(echo "$CERT" | sed 's/^/          /')
-          EOF
+          echo "Creating linkerd-identity-trust-roots ConfigMap with trust anchor..."
+          kubectl create configmap linkerd-identity-trust-roots -n linkerd \
+            --from-literal=ca-bundle.crt="$CERT" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
-          echo "Trust anchor values ConfigMap created/updated successfully"
-          kubectl get configmap linkerd-trust-anchor-values -n linkerd
+          echo "Trust anchor ConfigMap created/updated successfully"
+          kubectl get configmap linkerd-identity-trust-roots -n linkerd -o yaml | head -20
