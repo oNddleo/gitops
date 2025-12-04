@@ -269,3 +269,47 @@ Provide complete file contents for the most critical files, and explain the arch
 - Include comments explaining key configuration decisions
 
 **Generate the complete implementation following these specifications.**
+
+---
+
+# GitOps Repository Optimization & Cleanup**
+
+## **Context**
+You are an expert code analyzer and DevOps engineer. I have a GitOps repository that needs optimization. Please analyze the structure, identify duplicates, unused files, and suggest improvements for better maintainability.
+
+## **Task: Repository Optimization & Documentation**
+Analyze and transform this GitOps repository into a clean, optimized structure with comprehensive documentation.
+
+## **Analysis Requirements**
+
+### **1. Duplicate Code Detection**
+- Identify duplicate YAML/configuration patterns across services
+- Find repeated Helm chart sections that could be templated
+- Spot duplicate environment configurations (dev/staging/production)
+- Detect redundant Kustomize patches
+
+**Focus areas:**
+- Similar deployment configurations across serviceA, serviceB
+- Repeated Linkerd annotations
+- Duplicate AWS Secrets Manager configurations
+- Common environment variables patterns
+
+### **2. Unused Files Detection**
+- Identify files not referenced in any Kustomization or Application manifest
+- Find orphaned configuration files
+- Detect unused Helm chart values
+- Identify CI/CD workflows that aren't triggered
+
+**Methodology:**
+- Trace imports/references starting from `root-app.yaml`
+- Check what's actually deployed vs what exists in repo
+- Verify all Application CRDs point to existing paths
+
+### **3. Structure Optimization**
+Propose a more compact structure by:
+- Consolidating similar configurations
+- Creating shared base templates
+- Removing unnecessary nesting
+- Standardizing naming conventions
+
+**Please analyze the current repository and provide concrete optimization recommendations with actionable steps.**
