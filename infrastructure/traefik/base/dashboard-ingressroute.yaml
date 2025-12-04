@@ -18,8 +18,8 @@ spec:
       middlewares:
         - name: dashboard-auth
         - name: dashboard-ipwhitelist
-  tls:
-    secretName: traefik-dashboard-tls
+  # tls:
+  #   secretName: traefik-dashboard-tls
 ---
 # HTTP to HTTPS redirect
 apiVersion: traefik.io/v1alpha1

@@ -42,6 +42,7 @@ helm upgrade --install argocd argo/argo-cd \
   --create-namespace \
   --set server.service.type=NodePort \
   --set server.service.nodePortHttp=30080 \
+  --set server.service.nodePortHttps=30443 \
   --set configs.params."application\.instanceLabelKey"=argocd.argoproj.io/instance \
   --set configs.params."server\.insecure"=true
 
