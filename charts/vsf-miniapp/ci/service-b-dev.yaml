@@ -1,0 +1,191 @@
+# Service B - Development Environment
+# Node.js Express Application
+
+# ============================================================================
+# Service Identity
+# ============================================================================
+serviceName: service-b
+language: nodejs
+runtime: node-20
+
+# ============================================================================
+# Container Image
+# ============================================================================
+image:
+  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-b
+  tag: "latest"
+  pullPolicy: Always
+
+# ============================================================================
+# Scaling Configuration
+# ============================================================================
+replicaCount: 1
+
+autoscaling:
+  enabled: false
+
+# ============================================================================
+# Service Configuration
+# ============================================================================
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000  # Express default
+
+# ============================================================================
+# Resource Management (Node.js is lighter than Java)
+# ============================================================================
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+# ============================================================================
+# Environment Variables (Node.js-specific)
+# ============================================================================
+env:
+  - name: APP_NAME
+    value: "service-b"
+  - name: NODE_ENV
+    value: "development"
+  - name: PORT
+    value: "3000"
+  - name: LOG_LEVEL
+    value: "debug"
+  - name: NODE_OPTIONS
+    value: "--max-old-space-size=200"
+
+envFrom:
+  - configMapRef:
+      name: service-b-config
+  - secretRef:
+      name: service-b-secrets
+
+# ============================================================================
+# Health Probes (Express endpoints)
+# ============================================================================
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 3000
+  initialDelaySeconds: 15  # Node.js starts faster than Java
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+# ============================================================================
+# Pod Annotations
+# ============================================================================
+podAnnotations:
+  linkerd.io/inject: enabled
+  config.linkerd.io/skip-outbound-ports: "27017,6379"  # MongoDB, Redis
+  reloader.stakater.com/auto: "true"
+
+# ============================================================================
+# Service Account
+# ============================================================================
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-b-dev-secrets-reader"
+  name: "service-b"
+
+# ============================================================================
+# AWS Secrets Manager Integration
+# ============================================================================
+secretsManager:
+  enabled: true
+  region: us-east-1
+  mountPath: /mnt/secrets
+  objects:
+    - objectName: "dev/vsf-miniapp/service-b/mongodb"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: connectionString
+          objectAlias: mongodb-uri
+        - path: database
+          objectAlias: mongodb-database
+  syncToKubernetesSecret: true
+  secretData:
+    - objectName: mongodb-uri
+      key: MONGODB_URI
+    - objectName: mongodb-database
+      key: MONGODB_DATABASE
+
+# ============================================================================
+# ConfigMap
+# ============================================================================
+configMap:
+  enabled: true
+  data:
+    config.json: |
+      {
+        "server": {
+          "port": 3000,
+          "host": "0.0.0.0"
+        },
+        "logging": {
+          "level": "debug",
+          "format": "json"
+        },
+        "cors": {
+          "enabled": true,
+          "origins": ["*"]
+        }
+      }
+
+# ============================================================================
+# Ingress Configuration
+# ============================================================================
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: service-b-dev.vsf-miniapp.local
+      paths:
+        - path: /api/v1/service-b
+          pathType: Prefix
+  tls:
+    enabled: false
+
+# ============================================================================
+# Monitoring
+# ============================================================================
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+    port: http
+
+# ============================================================================
+# Security Context
+# ============================================================================
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
