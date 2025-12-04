@@ -1,6 +1,40 @@
 # GitOps Kubernetes Platform on AWS EKS
 
-A production-ready, GitOps-based Kubernetes platform running on Amazon EKS with complete CI/CD automation, secrets management via AWS Secrets Manager, service mesh, and observability.
+A production-ready, multi-service GitOps platform on Amazon EKS with Linkerd mTLS, AWS Secrets Manager, and automated deployments.
+
+## 🚀 Quick Start
+
+**Deploy in under 10 minutes:**
+
+```bash
+./deploy.sh
+```
+
+Or see **[QUICKSTART.md](QUICKSTART.md)** for detailed quick start guide.
+
+**New to this platform?** Start here:
+1. **[QUICKSTART.md](QUICKSTART.md)** - Get running in 10 minutes
+2. **[DEPLOYMENT_INSTRUCTIONS.md](DEPLOYMENT_INSTRUCTIONS.md)** - Full deployment guide
+3. **[ARCHITECTURE_GUIDE.md](ARCHITECTURE_GUIDE.md)** - Understand the architecture
+
+---
+
+## 📊 What's Included
+
+### Multi-Service Architecture
+✅ **Service A** (Java Spring Boot) - PostgreSQL + Kafka
+✅ **Service B** (Node.js Express) - MongoDB + Redis
+✅ **Ready for more** - Add services in 5 minutes
+
+### Core Features
+🔒 **Linkerd mTLS** - Zero-trust networking, automatic encryption
+🔐 **AWS Secrets Manager** - Centralized secrets via CSI driver
+🚀 **Auto-scaling** - HPA for staging/production
+♻️ **Auto-reload** - Reloader watches config changes
+📊 **Observable** - Prometheus metrics, Linkerd Viz
+🌐 **Multi-AZ** - High availability in production
+
+---
 
 ## Table of Contents
 
