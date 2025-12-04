@@ -54,3 +54,17 @@ spec:
       - 172.16.0.0/12
       - 192.168.0.0/16
       # - YOUR_OFFICE_IP/32
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: linkerd-viz-tls
+  namespace: linkerd-viz
+spec:
+  secretName: linkerd-viz-tls
+  dnsNames:
+    - linkerd.example.com # UPDATE THIS matches IngressRoute host
+  issuerRef:
+    name: letsencrypt-production # UPDATE THIS to your ClusterIssuer
+    kind: ClusterIssuer
+    group: cert-manager.io

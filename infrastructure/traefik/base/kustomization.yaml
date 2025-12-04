@@ -10,4 +10,3 @@ resources:
   - dashboard-ingressroute.yaml
   - dashboard-middleware.yaml
   - default-headers-middleware.yaml
-  - rate-limit-middleware.yaml

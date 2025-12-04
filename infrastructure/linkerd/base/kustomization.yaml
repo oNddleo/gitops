@@ -6,15 +6,4 @@ namespace: linkerd
 resources:
   - linkerd-issuer.yaml
   - namespace.yaml
-
-patches:
-  - patch: |-
-      apiVersion: v1
-      kind: ConfigMap
-      metadata:
-        name: linkerd-identity-trust-roots
-        annotations:
-          cert-manager.io/inject-ca-from: linkerd/linkerd-trust-anchor
-    target:
-      kind: ConfigMap
-      name: linkerd-identity-trust-roots
+  - trust-root.yaml

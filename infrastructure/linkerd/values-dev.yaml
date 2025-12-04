@@ -3,6 +3,11 @@ identity:
   issuer:
     scheme: kubernetes.io/tls
   externalCA: true
+  externalIssuer:
+    certificate: linkerd-identity-issuer # Cert-manager created secret for intermediate issuer
+    # The Linkerd Helm chart will look for a Secret named linkerd-identity-issuer
+    # in the linkerd namespace. This Secret should be type kubernetes.io/tls
+    # and contain 'tls.crt' and 'tls.key'.
 
 controllerReplicas: 1
 enablePodAntiAffinity: false

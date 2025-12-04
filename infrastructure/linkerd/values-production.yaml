@@ -3,6 +3,8 @@ identity:
   issuer:
     scheme: kubernetes.io/tls
   externalCA: true
+  externalIssuer:
+    certificate: linkerd-identity-issuer # Cert-manager created secret for intermediate issuer
 
 controllerReplicas: 3
 enablePodAntiAffinity: true

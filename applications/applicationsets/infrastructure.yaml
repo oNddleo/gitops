@@ -39,6 +39,8 @@ spec:
     metadata:
       name: 'infra-{{.name}}'
       namespace: argocd
+      annotations:
+        argocd.argoproj.io/sync-wave: "1"  # Deploy after cert-manager, CRDs, and certificates
       finalizers:
         - resources-finalizer.argocd.argoproj.io
     spec:
@@ -75,3 +77,4 @@ spec:
             duration: 5s
             factor: 2
             maxDuration: 3m
+

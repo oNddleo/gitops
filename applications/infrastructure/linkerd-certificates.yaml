@@ -1,20 +1,18 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: linkerd-crds
+  name: linkerd-certificates
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "-2"  # Deploy before certificates
+    argocd.argoproj.io/sync-wave: "-1"  # Deploy before linkerd-control-plane
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: infrastructure
   source:
-    chart: linkerd-crds
-    repoURL: https://helm.linkerd.io/stable
-    targetRevision: 1.8.0
-    helm:
-      releaseName: linkerd-crds
+    repoURL: https://github.com/oNddleo/gitops.git
+    targetRevision: HEAD
+    path: infrastructure/linkerd/base
   destination:
     server: https://kubernetes.default.svc
     namespace: linkerd
@@ -24,7 +22,6 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - Replace=true
     retry:
       limit: 5
       backoff:
