@@ -5,6 +5,18 @@ identity:
   externalCA: true
   externalIssuer:
     certificate: linkerd-identity-issuer # Cert-manager created secret for intermediate issuer
+  trustAnchorsPEM: |
+    -----BEGIN CERTIFICATE-----
+    MIIBizCCATGgAwIBAgIRANuzHwWyl+0P1CaDBfbLgaIwCgYIKoZIzj0EAwIwJTEj
+    MCEGA1UEAxMacm9vdC5saW5rZXJkLmNsdXN0ZXIubG9jYWwwHhcNMjUxMjA0MTQ0
+    MzUyWhcNMzUxMjAyMTQ0MzUyWjAlMSMwIQYDVQQDExpyb290LmxpbmtlcmQuY2x1
+    c3Rlci5sb2NhbDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABOyrEspiEcP4SiyC
+    ajQpzBwh4zZuaGISn+LPYQtPyMPeyZDdKJBkzG4k/zRTHWtL8IsM0tCPc2ArTmAh
+    U8kdKeCjQjBAMA4GA1UdDwEB/wQEAwICpDAPBgNVHRMBAf8EBTADAQH/MB0GA1Ud
+    DgQWBBTqWS7PIT0rLc1aDvJhEUU59kXajzAKBggqhkjOPQQDAgNIADBFAiBzR/NM
+    pr/vBDVwlyto6wSGew7EjAMKsTZKwxaMqc8LNwIhAInsJ/063dxhiVvIy8RgbdLU
+    eTH7ALhvGipzLQyEcZOh
+    -----END CERTIFICATE-----
 
 controllerReplicas: 3
 enablePodAntiAffinity: true
