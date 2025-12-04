@@ -1,0 +1,30 @@
+---
+# Self-signed issuer for Traefik dashboard
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: traefik-selfsigned-issuer
+  namespace: traefik
+spec:
+  selfSigned: {}
+---
+# TLS certificate for Traefik dashboard
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: traefik-dashboard
+  namespace: traefik
+spec:
+  secretName: traefik-dashboard-tls
+  commonName: traefik.example.com
+  dnsNames:
+    - traefik.example.com
+  issuerRef:
+    name: traefik-selfsigned-issuer
+    kind: Issuer
+    group: cert-manager.io
+  duration: 2160h  # 90 days
+  renewBefore: 720h  # 30 days before expiry
+  privateKey:
+    algorithm: RSA
+    size: 2048

@@ -18,8 +18,8 @@ spec:
       middlewares:
         - name: linkerd-auth
         - name: linkerd-ipwhitelist
-  tls:
-    secretName: linkerd-viz-tls
+  # tls:
+  #   secretName: linkerd-viz-tls
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

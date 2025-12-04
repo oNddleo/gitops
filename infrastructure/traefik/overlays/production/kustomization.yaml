@@ -4,7 +4,7 @@ kind: Kustomization
 # Production environment overlay for Traefik
 resources:
   - ../../base
-  - ../../base/rate-limit-middleware.yaml
+  - rate-limit.yaml
 
 namespace: traefik
 
