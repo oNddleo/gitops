@@ -1,0 +1,72 @@
+# Linkerd Development Values (Single Node)
+identity:
+  issuer:
+    scheme: kubernetes.io/tls
+  externalCA: true
+
+controllerReplicas: 1
+enablePodAntiAffinity: false
+
+controllerResources:
+  cpu:
+    request: 100m
+  memory:
+    request: 128Mi
+  limit:
+    cpu: 1000m
+    memory: 1Gi
+
+destinationResources:
+  cpu:
+    request: 100m
+  memory:
+    request: 128Mi
+  limit:
+    cpu: 1000m
+    memory: 512Mi
+
+proxy:
+  enableExternalProfiles: true
+  resources:
+    cpu:
+      request: 100m
+    memory:
+      request: 128Mi
+    limit:
+      cpu: 500m
+      memory: 256Mi
+
+proxyInjector:
+  externalSecret: false
+  resources:
+    cpu:
+      request: 100m
+    memory:
+      request: 128Mi
+    limit:
+      cpu: 500m
+      memory: 256Mi
+
+profileValidator:
+  externalSecret: false
+  resources:
+    cpu:
+      request: 100m
+    memory:
+      request: 128Mi
+    limit:
+      cpu: 500m
+      memory: 256Mi
+
+policyValidator:
+  externalSecret: false
+  resources:
+    cpu:
+      request: 100m
+    memory:
+      request: 128Mi
+    limit:
+      cpu: 500m
+      memory: 256Mi
+
+disableHeartBeat: false

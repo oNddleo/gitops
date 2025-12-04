@@ -1,0 +1,77 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: infrastructure-components
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - list:
+        elements:
+          # Linkerd Control Plane
+          - name: linkerd-control-plane
+            namespace: linkerd
+            chart: linkerd-control-plane
+            repoURL: https://helm.linkerd.io/stable
+            targetRevision: 1.16.11
+            path: infrastructure/linkerd
+            env: dev  # Change to 'production' for HA
+          
+          # Linkerd Viz
+          - name: linkerd-viz
+            namespace: linkerd-viz
+            chart: linkerd-viz
+            repoURL: https://helm.linkerd.io/stable
+            targetRevision: 30.12.11
+            path: infrastructure/linkerd-viz
+            env: dev
+          
+          # Traefik
+          - name: traefik
+            namespace: traefik
+            chart: traefik
+            repoURL: https://traefik.github.io/charts
+            targetRevision: 37.4.0
+            path: infrastructure/traefik
+            env: dev
+
+  template:
+    metadata:
+      name: 'infra-{{.name}}'
+      namespace: argocd
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: infrastructure
+      sources:
+        # Source 1: Helm Chart with specific values
+        - repoURL: '{{.repoURL}}'
+          chart: '{{.chart}}'
+          targetRevision: '{{.targetRevision}}'
+          helm:
+            releaseName: '{{.name}}'
+            valueFiles:
+              - '$values/{{.path}}/values-{{.env}}.yaml'
+
+        # Source 2: Kustomize Overlay for local customizations
+        - repoURL: https://github.com/oNddleo/gitops.git
+          targetRevision: HEAD
+          path: '{{.path}}/overlays/{{.env}}'
+          ref: values  # Reference this repo as $values for the Helm value file
+
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{.namespace}}'
+      
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m

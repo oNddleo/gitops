@@ -41,15 +41,3 @@ spec:
       # - YOUR_OFFICE_IP/32  # Add your office IP
     ipStrategy:
       depth: 1
----
-apiVersion: traefik.containo.us/v1alpha1
-kind: Middleware
-metadata:
-  name: https-redirect
-  namespace: traefik
-  labels:
-    app: traefik
-spec:
-  redirectScheme:
-    scheme: https
-    permanent: true

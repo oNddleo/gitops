@@ -219,15 +219,6 @@ monitoring:
     path: /metrics
     port: metrics
 
-# External Secrets Operator (disabled - we use AWS Secrets Manager CSI Driver instead)
-externalSecrets:
-  enabled: false
-  refreshInterval: 1h
-  secretStore:
-    name: aws-secretsmanager
-    kind: SecretStore
-  data: []
-
 # Additional volumes
 volumes: []
 

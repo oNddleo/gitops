@@ -72,12 +72,6 @@ spec:
               mountPath: {{ .Values.secretsManager.mountPath }}
               readOnly: true
             {{- end }}
-            {{- with .Values.volumes }}
-            {{- range . }}
-            - name: {{ .name }}
-              mountPath: {{ .mountPath }}
-            {{- end }}
-            {{- end }}
       volumes:
         - name: tmp
           emptyDir: {}

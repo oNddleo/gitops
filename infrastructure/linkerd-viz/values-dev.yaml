@@ -1,0 +1,33 @@
+# Linkerd Viz Development Values
+dashboard:
+  replicas: 1
+  resources:
+    cpu:
+      request: 50m
+    memory:
+      request: 128Mi
+    limit:
+      cpu: 500m
+      memory: 512Mi
+
+prometheus:
+  enabled: true
+  resources:
+    cpu:
+      request: 300m
+    memory:
+      request: 512Mi
+    limit:
+      cpu: 1000m
+      memory: 2Gi
+
+grafana:
+  enabled: true
+  resources:
+    cpu:
+      request: 50m
+    memory:
+      request: 128Mi
+    limit:
+      cpu: 500m
+      memory: 512Mi

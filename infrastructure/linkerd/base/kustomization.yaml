@@ -3,11 +3,18 @@ kind: Kustomization
 
 namespace: linkerd
 
-# Linkerd requires certificates to be generated before installation
-# Run the cert-generation script first
-
-
-
 resources:
-  - linkerd-certificates.yaml
+  - linkerd-issuer.yaml
   - namespace.yaml
+
+patches:
+  - patch: |-
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: linkerd-identity-trust-roots
+        annotations:
+          cert-manager.io/inject-ca-from: linkerd/linkerd-trust-anchor
+    target:
+      kind: ConfigMap
+      name: linkerd-identity-trust-roots

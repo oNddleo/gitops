@@ -90,15 +90,12 @@ readinessProbe:
 # Pod Annotations
 # ============================================================================
 podAnnotations:
-  linkerd.io/inject: enabled
   config.linkerd.io/skip-outbound-ports: "5432,3306,9092"
-  reloader.stakater.com/auto: "true"
 
 # ============================================================================
 # Service Account
 # ============================================================================
 serviceAccount:
-  create: true
   annotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-a-dev-secrets-reader"
   name: "service-a"
@@ -146,8 +143,6 @@ configMap:
 # Ingress Configuration
 # ============================================================================
 ingress:
-  enabled: true
-  className: traefik
   hosts:
     - host: service-a-dev.vsf-miniapp.local
       paths:
@@ -160,28 +155,6 @@ ingress:
 # Monitoring
 # ============================================================================
 monitoring:
-  enabled: true
   serviceMonitor:
-    enabled: true
-    interval: 30s
     path: /actuator/prometheus
     port: http
-
-# ============================================================================
-# Security Context
-# ============================================================================
-podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  fsGroup: 1000
-  seccompProfile:
-    type: RuntimeDefault
-
-securityContext:
-  allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
-  runAsNonRoot: true
-  runAsUser: 1000
-  capabilities:
-    drop:
-      - ALL

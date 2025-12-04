@@ -73,15 +73,12 @@ readinessProbe:
   failureThreshold: 3
 
 podAnnotations:
-  linkerd.io/inject: enabled
   config.linkerd.io/skip-outbound-ports: "5432,3306,9092"
-  reloader.stakater.com/auto: "true"
   prometheus.io/scrape: "true"
   prometheus.io/port: "8081"
   prometheus.io/path: "/actuator/prometheus"
 
 serviceAccount:
-  create: true
   annotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-a-production-secrets-reader"
   name: "service-a"
@@ -150,8 +147,6 @@ configMap:
       spring.datasource.hikari.connection-timeout=20000
 
 ingress:
-  enabled: true
-  className: traefik
   annotations:
     traefik.ingress.kubernetes.io/router.middlewares: production-rate-limit@kubernetescrd
   hosts:
@@ -164,10 +159,7 @@ ingress:
     secretName: vsf-miniapp-production-tls
 
 monitoring:
-  enabled: true
   serviceMonitor:
-    enabled: true
-    interval: 30s
     path: /actuator/prometheus
     port: metrics
 

@@ -14,10 +14,16 @@ We include serviceName to differentiate between services using the same chart.
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
 {{- $name := default .Chart.Name .Values.nameOverride }}
+{{- $base := "" }}
 {{- if contains $name .Release.Name }}
-{{- printf "%s-%s" .Release.Name .Values.serviceName | trunc 63 | trimSuffix "-" }}
+{{- $base = .Release.Name }}
 {{- else }}
-{{- printf "%s-%s-%s" .Release.Name $name .Values.serviceName | trunc 63 | trimSuffix "-" }}
+{{- $base = printf "%s-%s" .Release.Name $name }}
+{{- end }}
+{{- if and .Values.serviceName (not (contains .Values.serviceName $base)) }}
+{{- printf "%s-%s" $base .Values.serviceName | trunc 63 | trimSuffix "-" }}
+{{- else }}
+{{- $base | trunc 63 | trimSuffix "-" }}
 {{- end }}
 {{- end }}
 {{- end }}
