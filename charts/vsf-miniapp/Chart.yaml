@@ -1,6 +1,6 @@
 apiVersion: v2
-name: my-microservice
-description: A Helm chart for deploying a microservice on Kubernetes with GitOps
+name: vsf-miniapp
+description: Shared Helm chart for VSF Miniapp microservices platform supporting multiple languages
 type: application
 version: 1.0.0
 appVersion: "1.0.0"
@@ -8,6 +8,8 @@ keywords:
   - microservice
   - gitops
   - kubernetes
+  - multi-service
+  - multi-language
 maintainers:
   - name: Platform Team
     email: platform@example.com

@@ -1,0 +1,187 @@
+# Service A - Development Environment
+# This configuration uses the shared vsf-miniapp chart
+
+# ============================================================================
+# Service Identity
+# ============================================================================
+serviceName: service-a
+language: java
+runtime: openjdk-17
+
+# ============================================================================
+# Container Image
+# ============================================================================
+image:
+  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-a
+  tag: "latest"  # Dev uses latest
+  pullPolicy: Always  # Always pull in dev
+
+# ============================================================================
+# Scaling Configuration
+# ============================================================================
+replicaCount: 1  # Dev uses minimal resources
+
+autoscaling:
+  enabled: false  # Disabled in dev
+
+# ============================================================================
+# Service Configuration
+# ============================================================================
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080  # Spring Boot default
+
+# ============================================================================
+# Resource Management
+# ============================================================================
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+# ============================================================================
+# Environment Variables
+# ============================================================================
+env:
+  - name: APP_NAME
+    value: "service-a"
+  - name: SPRING_PROFILES_ACTIVE
+    value: "dev"
+  - name: SERVER_PORT
+    value: "8080"
+  - name: LOG_LEVEL
+    value: "debug"
+  - name: JAVA_OPTS
+    value: "-Xmx384m -Xms256m -XX:+UseG1GC"
+
+# Environment variables from ConfigMap and Secrets
+envFrom:
+  - configMapRef:
+      name: service-a-config
+  - secretRef:
+      name: service-a-secrets
+
+# ============================================================================
+# Health Probes
+# ============================================================================
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# ============================================================================
+# Pod Annotations
+# ============================================================================
+podAnnotations:
+  linkerd.io/inject: enabled
+  config.linkerd.io/skip-outbound-ports: "5432,3306,9092"
+  reloader.stakater.com/auto: "true"
+
+# ============================================================================
+# Service Account
+# ============================================================================
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-a-dev-secrets-reader"
+  name: "service-a"
+
+# ============================================================================
+# AWS Secrets Manager Integration
+# ============================================================================
+secretsManager:
+  enabled: true
+  region: us-east-1
+  mountPath: /mnt/secrets
+  objects:
+    - objectName: "dev/vsf-miniapp/service-a/database"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: url
+          objectAlias: database-url
+        - path: username
+          objectAlias: database-username
+        - path: password
+          objectAlias: database-password
+  syncToKubernetesSecret: true
+  secretData:
+    - objectName: database-url
+      key: DATABASE_URL
+    - objectName: database-username
+      key: DATABASE_USERNAME
+    - objectName: database-password
+      key: DATABASE_PASSWORD
+
+# ============================================================================
+# ConfigMap
+# ============================================================================
+configMap:
+  enabled: true
+  data:
+    application.properties: |
+      server.port=8080
+      spring.application.name=service-a
+      spring.profiles.active=dev
+      management.endpoints.web.exposure.include=health,info,metrics
+      management.endpoint.health.probes.enabled=true
+
+# ============================================================================
+# Ingress Configuration
+# ============================================================================
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: service-a-dev.vsf-miniapp.local
+      paths:
+        - path: /api/v1/service-a
+          pathType: Prefix
+  tls:
+    enabled: false  # No TLS in dev
+
+# ============================================================================
+# Monitoring
+# ============================================================================
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /actuator/prometheus
+    port: http
+
+# ============================================================================
+# Security Context
+# ============================================================================
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL

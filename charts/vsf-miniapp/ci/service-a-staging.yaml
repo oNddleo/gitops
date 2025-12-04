@@ -1,0 +1,127 @@
+# Service A - Staging Environment
+
+serviceName: service-a
+language: java
+runtime: openjdk-17
+
+image:
+  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-a
+  tag: "staging"
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 75
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+env:
+  - name: APP_NAME
+    value: "service-a"
+  - name: SPRING_PROFILES_ACTIVE
+    value: "staging"
+  - name: SERVER_PORT
+    value: "8080"
+  - name: LOG_LEVEL
+    value: "info"
+  - name: JAVA_OPTS
+    value: "-Xmx768m -Xms512m -XX:+UseG1GC"
+
+envFrom:
+  - configMapRef:
+      name: service-a-config
+  - secretRef:
+      name: service-a-secrets
+
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8080
+  initialDelaySeconds: 60
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 5
+
+podAnnotations:
+  linkerd.io/inject: enabled
+  config.linkerd.io/skip-outbound-ports: "5432,3306,9092"
+  reloader.stakater.com/auto: "true"
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-a-staging-secrets-reader"
+  name: "service-a"
+
+secretsManager:
+  enabled: true
+  region: us-east-1
+  mountPath: /mnt/secrets
+  objects:
+    - objectName: "staging/vsf-miniapp/service-a/database"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: url
+          objectAlias: database-url
+        - path: username
+          objectAlias: database-username
+        - path: password
+          objectAlias: database-password
+  syncToKubernetesSecret: true
+  secretData:
+    - objectName: database-url
+      key: DATABASE_URL
+    - objectName: database-username
+      key: DATABASE_USERNAME
+    - objectName: database-password
+      key: DATABASE_PASSWORD
+
+configMap:
+  enabled: true
+  data:
+    application.properties: |
+      server.port=8080
+      spring.application.name=service-a
+      spring.profiles.active=staging
+      management.endpoints.web.exposure.include=health,info,metrics,prometheus
+      management.endpoint.health.probes.enabled=true
+
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: service-a-staging.vsf-miniapp.com
+      paths:
+        - path: /api/v1/service-a
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: vsf-miniapp-staging-tls
+
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /actuator/prometheus
+    port: http

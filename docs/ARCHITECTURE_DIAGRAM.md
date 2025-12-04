@@ -47,8 +47,8 @@ Visual representation of the complete GitOps platform architecture.
                                                     │
                                                     ▼
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                         AWS EKS CLUSTER                                     │
-│                                                                             │
+│                         AWS EKS CLUSTER                                    │
+│                                                                            │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                    INFRASTRUCTURE LAYER                             │   │
 │  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐             │   │
@@ -56,7 +56,7 @@ Visual representation of the complete GitOps platform architecture.
 │  │  │ (mTLS)   │  │ Ingress  │  │ Driver   │  │          │             │   │
 │  │  └──────────┘  └──────────┘  └──────────┘  └──────────┘             │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
+│                                                                            │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                     APPLICATION LAYER                               │   │
 │  │                                                                     │   │
@@ -64,38 +64,38 @@ Visual representation of the complete GitOps platform architecture.
 │  │  │ Namespace: prod  │   │ Namespace: stg   │   │ Namespace: dev  │  │   │
 │  │  │                  │   │                  │   │                 │  │   │
 │  │  │ ┌─────────────┐  │   │ ┌─────────────┐  │   │ ┌────────────┐  │  │   │
-│  │  │ │  Service A  │  │   │ │  Service A  │  │   │ │ Service A  │ │   │   │
-│  │  │ │   (Java)    │  │   │ │   (Java)    │  │   │ │  (Java)    │ │   │   │
-│  │  │ │   ┌─────┐   │  │   │ │   ┌─────┐   │  │   │ │  ┌─────┐   │ │   │   │
-│  │  │ │   │ App │   │  │   │ │   │ App │   │  │   │ │  │ App │   │ │   │   │
-│  │  │ │   └─────┘   │  │   │ │   └─────┘   │  │   │ │  └─────┘   │ │   │   │
-│  │  │ │   ┌─────┐   │  │   │ │   ┌─────┐   │  │   │ │  ┌─────┐   │ │   │   │
-│  │  │ │   │Proxy│   │  │   │ │   │Proxy│   │  │   │ │  │Proxy│   │ │   │   │
-│  │  │ │   └─────┘   │  │   │ │   └─────┘   │  │   │ │  └─────┘   │ │   │   │
-│  │  │ │             │  │   │ │             │  │   │ │            │ │   │   │
-│  │  │ ┌─────────────┐  │   │ ┌─────────────┐  │ │ │ ┌────────────┐ │   │   │
-│  │  │ │  Service B  │  │   │ │  Service B  │  │   │ │  Service B │ ││   │
-│  │  │ │   (Node.js) │  │   │ │   (Node.js) │  │   │ │  (Node.js) │ ││   │
-│  │  │ │   ┌─────┐   │  │   │ │   ┌─────┐   │  │   │ │  ┌─────┐   │ ││   │
-│  │  │ │   │ App │   │  │   │ │   │ App │   │  │   │ │  │ App │   │ ││   │
-│  │  │ │   └─────┘   │  │   │ │   └─────┘   │  │   │ │  └─────┘   │ ││   │
-│  │  │ │   ┌─────┐   │  │   │ │   ┌─────┐   │  │   │ │  ┌─────┐   │ ││   │
-│  │  │ │   │Proxy│   │  │   │ │   │Proxy│   │  │   │ │  │Proxy│   │ ││   │
-│  │  │ │   └─────┘   │  │   │ │   └─────┘   │  │   │ │  └─────┘   │ ││   │
-│  │  │ └─────────────┘  │   │ └─────────────┘  │   │ └────────────┘ ││   │
+│  │  │ │  Service A  │  │   │ │  Service A  │  │   │ │ Service A  │  │  │   │
+│  │  │ │   (Java)    │  │   │ │   (Java)    │  │   │ │  (Java)    │  │  │   │
+│  │  │ │   ┌─────┐   │  │   │ │   ┌─────┐   │  │   │ │  ┌─────┐   │  │  │   │
+│  │  │ │   │ App │   │  │   │ │   │ App │   │  │   │ │  │ App │   │  │  │   │
+│  │  │ │   └─────┘   │  │   │ │   └─────┘   │  │   │ │  └─────┘   │  │  │   │
+│  │  │ │   ┌─────┐   │  │   │ │   ┌─────┐   │  │   │ │  ┌─────┐   │  │  │   │
+│  │  │ │   │Proxy│   │  │   │ │   │Proxy│   │  │   │ │  │Proxy│   │  │  │   │
+│  │  │ │   └─────┘   │  │   │ │   └─────┘   │  │   │ │  └─────┘   │  │  │   │
+│  │  │ │             │  │   │ │             │  │   │ │            │  │  │   │
+│  │  │ ┌─────────────┐  │   │ ┌─────────────┐  │   │ ┌────────────┐  │  │   │
+│  │  │ │  Service B  │  │   │ │  Service B  │  │   │ │  Service B │  │  │   │
+│  │  │ │   (Node.js) │  │   │ │   (Node.js) │  │   │ │  (Node.js) │  │  │   │
+│  │  │ │   ┌─────┐   │  │   │ │   ┌─────┐   │  │   │ │  ┌─────┐   │  │  │   │
+│  │  │ │   │ App │   │  │   │ │   │ App │   │  │   │ │  │ App │   │  │  │   │
+│  │  │ │   └─────┘   │  │   │ │   └─────┘   │  │   │ │  └─────┘   │  │  │   │
+│  │  │ │   ┌─────┐   │  │   │ │   ┌─────┐   │  │   │ │  ┌─────┐   │  │  │   │
+│  │  │ │   │Proxy│   │  │   │ │   │Proxy│   │  │   │ │  │Proxy│   │  │  │   │
+│  │  │ │   └─────┘   │  │   │ │   └─────┘   │  │   │ │  └─────┘   │  │  │   │
+│  │  │ └─────────────┘  │   │ └─────────────┘  │   │ └────────────┘  │  │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
+│                                                                            │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
 │  │                     EXTERNAL INTEGRATIONS                           │   │
-│  │                                                                      │   │
-│  │  ┌──────────────────┐         ┌────────────────────┐               │   │
-│  │  │ AWS Secrets      │         │ AWS ECR            │               │   │
-│  │  │ Manager          │◀────────│ (Container Images) │               │   │
-│  │  │                  │   IRSA  │                    │               │   │
-│  │  │ - service-a/db   │         │ - service-a:1.0.0  │               │   │
-│  │  │ - service-b/mongo│         │ - service-b:1.0.0  │               │   │
-│  │  │ - service-c/pg   │         │ - service-c:1.0.0  │               │   │
-│  │  └──────────────────┘         └────────────────────┘               │   │
+│  │                                                                     │   │
+│  │  ┌──────────────────┐         ┌────────────────────┐                │   │
+│  │  │ AWS Secrets      │         │ AWS ECR            │                │   │
+│  │  │ Manager          │◀────────│ (Container Images) │                │   │
+│  │  │                  │   IRSA  │                    │                │   │
+│  │  │ - service-a/db   │         │ - service-a:1.0.0  │                │   │
+│  │  │ - service-b/mongo│         │ - service-b:1.0.0  │                │   │
+│  │  │ - service-c/pg   │         │ - service-c:1.0.0  │                │   │
+│  │  └──────────────────┘         └────────────────────┘                │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 └────────────────────────────────────────────────────────────────────────────┘
                                     ▲
@@ -113,8 +113,8 @@ Visual representation of the complete GitOps platform architecture.
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│                    bootstrap/root-app.yaml                          │
-│                   (Root Application)                                │
+│                    bootstrap/root-app.yaml                         │
+│                   (Root Application)                               │
 └────────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -126,20 +126,20 @@ Visual representation of the complete GitOps platform architecture.
 │ (Always Deployed)    │                   │  (Per Environment)    │
 └──────────────────────┘                   └───────────────────────┘
         │                                               │
-        ├─▶ 00-project.yaml                           ├─▶ app-of-apps-dev.yaml
-        ├─▶ argocd-self-managed.yaml                  │       │
-        ├─▶ linkerd-crds.yaml                         │       ├─▶ dev/vsf-miniapp-service-a.yaml
-        ├─▶ linkerd-control-plane.yaml                │       └─▶ dev/vsf-miniapp-service-b.yaml
-        ├─▶ linkerd-viz.yaml                          │
-        ├─▶ secrets-store-csi-driver.yaml             ├─▶ app-of-apps-staging.yaml
-        ├─▶ secrets-store-csi-driver-provider-aws.yaml│       │
-        ├─▶ traefik.yaml                              │       ├─▶ staging/vsf-miniapp-service-a.yaml
-        └─▶ reloader.yaml                             │       └─▶ staging/vsf-miniapp-service-b.yaml
-                                                      │
-                                                      └─▶ app-of-apps-production.yaml
-                                                               │
-                                                               ├─▶ production/vsf-miniapp-service-a.yaml
-                                                               └─▶ production/vsf-miniapp-service-b.yaml
+        ├─▶ 00-project.yaml                             ├─▶ app-of-apps-dev.yaml
+        ├─▶ argocd-self-managed.yaml                    │       │
+        ├─▶ linkerd-crds.yaml                           │       ├─▶ dev/vsf-miniapp-service-a.yaml
+        ├─▶ linkerd-control-plane.yaml                  │       └─▶ dev/vsf-miniapp-service-b.yaml
+        ├─▶ linkerd-viz.yaml                            │
+        ├─▶ secrets-store-csi-driver.yaml               ├─▶ app-of-apps-staging.yaml
+        ├─▶ secrets-store-csi-driver-provider-aws.yaml  │       │
+        ├─▶ traefik.yaml                                │       ├─▶ staging/vsf-miniapp-service-a.yaml
+        └─▶ reloader.yaml                               │       └─▶ staging/vsf-miniapp-service-b.yaml
+                                                        │
+                                                        └─▶ app-of-apps-production.yaml
+                                                                 │
+                                                                 ├─▶ production/vsf-miniapp-service-a.yaml
+                                                                 └─▶ production/vsf-miniapp-service-b.yaml
 ```
 
 ---
@@ -148,7 +148,7 @@ Visual representation of the complete GitOps platform architecture.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                  USER REQUEST FLOW                                       │
+│                  USER REQUEST FLOW                                      │
 └─────────────────────────────────────────────────────────────────────────┘
 
 1. External Request
@@ -161,27 +161,27 @@ Visual representation of the complete GitOps platform architecture.
         │
         ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  Service A Pod                                                │
-│                                                               │
+│  Service A Pod                                               │
+│                                                              │
 │  ┌─────────────────────────────────────────────────────┐     │
 │  │ Linkerd Proxy (Ingress)                             │     │
 │  │ - Decrypts incoming traffic                         │     │
 │  │ - Validates mTLS certificate                        │     │
 │  │ - Routes to app container                           │     │
 │  └─────────────────────────────────────────────────────┘     │
-│                          │                                    │
-│                          ▼                                    │
+│                          │                                   │
+│                          ▼                                   │
 │  ┌─────────────────────────────────────────────────────┐     │
 │  │ Application Container (Java)                        │     │
 │  │ - Port 8080 (HTTP, not HTTPS!)                      │     │
 │  │ - Receives plain HTTP request                       │     │
-│  │ - Makes HTTP call to Service B: http://service-b   │     │
+│  │ - Makes HTTP call to Service B: http://service-b    │     │
 │  └─────────────────────────────────────────────────────┘     │
-│                          │                                    │
-│                          ▼                                    │
+│                          │                                   │
+│                          ▼                                   │
 │  ┌─────────────────────────────────────────────────────┐     │
 │  │ Linkerd Proxy (Egress)                              │     │
-│  │ - Intercepts outbound HTTP to service-b            │     │
+│  │ - Intercepts outbound HTTP to service-b             │     │
 │  │ - Encrypts with mTLS                                │     │
 │  │ - Adds Linkerd identity headers                     │     │
 │  └─────────────────────────────────────────────────────┘     │
@@ -191,16 +191,16 @@ Visual representation of the complete GitOps platform architecture.
                           │
                           ▼
 ┌──────────────────────────────────────────────────────────────┐
-│  Service B Pod                                                │
-│                                                               │
+│  Service B Pod                                               │
+│                                                              │
 │  ┌─────────────────────────────────────────────────────┐     │
 │  │ Linkerd Proxy (Ingress)                             │     │
 │  │ - Validates Service A's mTLS certificate            │     │
 │  │ - Decrypts traffic                                  │     │
 │  │ - Routes to app container                           │     │
 │  └─────────────────────────────────────────────────────┘     │
-│                          │                                    │
-│                          ▼                                    │
+│                          │                                   │
+│                          ▼                                   │
 │  ┌─────────────────────────────────────────────────────┐     │
 │  │ Application Container (Node.js)                     │     │
 │  │ - Port 3000 (HTTP, not HTTPS!)                      │     │
@@ -461,12 +461,19 @@ Total deployment time: ~3 minutes from code push to production
 This architecture provides:
 
 ✅ **Zero-trust security** - Linkerd mTLS for all service communication
+
 ✅ **Secret management** - AWS Secrets Manager with automatic rotation
+
 ✅ **GitOps deployment** - ArgoCD syncs from Git
+
 ✅ **Multi-language support** - Java, Node.js, Python via shared chart
+
 ✅ **High availability** - HPA, PDB, multi-AZ deployment
+
 ✅ **Observability** - Prometheus metrics, Linkerd Viz
+
 ✅ **Automated operations** - Reloader watches config changes
+
 ✅ **Infrastructure as Code** - Everything in Git
 
 The platform is **production-ready** and follows **cloud-native best practices**.
