@@ -71,15 +71,12 @@ readinessProbe:
   failureThreshold: 3
 
 podAnnotations:
-  linkerd.io/inject: enabled
   config.linkerd.io/skip-outbound-ports: "27017,6379"
-  reloader.stakater.com/auto: "true"
   prometheus.io/scrape: "true"
   prometheus.io/port: "3000"
   prometheus.io/path: "/metrics"
 
 serviceAccount:
-  create: true
   annotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-b-production-secrets-reader"
   name: "service-b"
@@ -149,8 +146,6 @@ configMap:
       }
 
 ingress:
-  enabled: true
-  className: traefik
   annotations:
     traefik.ingress.kubernetes.io/router.middlewares: production-rate-limit@kubernetescrd
   hosts:
@@ -163,10 +158,7 @@ ingress:
     secretName: vsf-miniapp-production-tls
 
 monitoring:
-  enabled: true
   serviceMonitor:
-    enabled: true
-    interval: 30s
     path: /metrics
     port: http
 

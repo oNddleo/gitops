@@ -64,12 +64,9 @@ readinessProbe:
   periodSeconds: 5
 
 podAnnotations:
-  linkerd.io/inject: enabled
   config.linkerd.io/skip-outbound-ports: "27017,6379"
-  reloader.stakater.com/auto: "true"
 
 serviceAccount:
-  create: true
   annotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-b-staging-secrets-reader"
   name: "service-b"
@@ -124,8 +121,6 @@ configMap:
       }
 
 ingress:
-  enabled: true
-  className: traefik
   hosts:
     - host: service-b-staging.vsf-miniapp.com
       paths:
@@ -136,9 +131,6 @@ ingress:
     secretName: vsf-miniapp-staging-tls
 
 monitoring:
-  enabled: true
   serviceMonitor:
-    enabled: true
-    interval: 30s
     path: /metrics
     port: http

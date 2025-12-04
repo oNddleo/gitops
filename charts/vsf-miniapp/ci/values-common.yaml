@@ -1,0 +1,51 @@
+# Common values shared across all environments and services
+# These values act as a base configuration
+
+# ============================================================================
+# Security Standards
+# ============================================================================
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  capabilities:
+    drop:
+      - ALL
+
+# ============================================================================
+# Common Pod Annotations
+# ============================================================================
+podAnnotations:
+  linkerd.io/inject: enabled
+  reloader.stakater.com/auto: "true"
+
+# ============================================================================
+# Service Account
+# ============================================================================
+serviceAccount:
+  create: true
+
+# ============================================================================
+# Ingress Defaults
+# ============================================================================
+ingress:
+  enabled: true
+  className: traefik
+
+# ============================================================================
+# Monitoring Defaults
+# ============================================================================
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    # Port and path are service-specific, defined in specific values files

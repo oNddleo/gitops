@@ -1,0 +1,33 @@
+# Linkerd Viz Production Values
+dashboard:
+  replicas: 2
+  resources:
+    cpu:
+      request: 50m
+    memory:
+      request: 128Mi
+    limit:
+      cpu: 500m
+      memory: 512Mi
+
+prometheus:
+  enabled: true
+  resources:
+    cpu:
+      request: 500m
+    memory:
+      request: 1Gi
+    limit:
+      cpu: 2000m
+      memory: 4Gi
+
+grafana:
+  enabled: true
+  resources:
+    cpu:
+      request: 100m
+    memory:
+      request: 256Mi
+    limit:
+      cpu: 500m
+      memory: 1Gi

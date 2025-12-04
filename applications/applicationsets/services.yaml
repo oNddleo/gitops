@@ -1,0 +1,84 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: vsf-miniapp-services
+  namespace: argocd
+spec:
+  goTemplate: true
+  generators:
+    - matrix:
+        generators:
+          # 1. Define Environments
+          - list:
+              elements:
+                - env: dev
+                  cluster: https://kubernetes.default.svc
+                  api_url: https://dev.vsf-miniapp.local
+                - env: staging
+                  cluster: https://kubernetes.default.svc
+                  api_url: https://staging.vsf-miniapp.com
+                - env: production
+                  cluster: https://kubernetes.default.svc
+                  api_url: https://vsf-miniapp.com
+          # 2. Define Services
+          - list:
+              elements:
+                - service: service-a
+                  language: java
+                - service: service-b
+                  language: nodejs
+  template:
+    metadata:
+      name: 'vsf-miniapp-{{.service}}-{{.env}}'
+      namespace: argocd
+      labels:
+        environment: '{{.env}}'
+        service: '{{.service}}'
+        language: '{{.language}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/oNddleo/gitops.git
+        targetRevision: HEAD
+        path: charts/vsf-miniapp
+        helm:
+          releaseName: '{{.service}}'
+          valueFiles:
+            - ci/values-common.yaml
+            - 'ci/{{.service}}-{{.env}}.yaml'
+      destination:
+        server: '{{.cluster}}'
+        namespace: '{{.env}}'
+      
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+          allowEmpty: false
+        syncOptions:
+          - CreateNamespace=true
+          - Validate=true
+          - ApplyOutOfSyncOnly=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 5s
+            factor: 2
+            maxDuration: 3m
+
+      # Ignore replica changes if HPA is managing them
+      ignoreDifferences:
+        - group: apps
+          kind: Deployment
+          jsonPointers:
+            - /spec/replicas
+
+      info:
+        - name: 'Environment'
+          value: '{{.env}}'
+        - name: 'Service'
+          value: '{{.service}}'
+        - name: 'Language'
+          value: '{{.language}}'
+        - name: 'API URL'
+          value: '{{.api_url}}'

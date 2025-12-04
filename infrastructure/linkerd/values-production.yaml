@@ -1,0 +1,103 @@
+# Linkerd Production Values (HA)
+identityTrustAnchorsPEM: |
+  -----BEGIN CERTIFICATE-----
+  MIIFGjCCAwKgAwIBAgIRAI22AHEZMlL1iRuL/507arcwDQYJKoZIhvcNAQELBQAw
+  JTEjMCEGA1UEAxMacm9vdC5saW5rZXJkLmNsdXN0ZXIubG9jYWwwHhcNMjUxMjAz
+  MTA0MzIzWhcNMzUxMjAxMTA0MzIzWjAlMSMwIQYDVQQDExpyb290LmxpbmtlcmQu
+  Y2x1c3Rlci5sb2NhbDCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAN/S
+  GEdLz+H+ckM62ZrmvROPMVN/t9tH0ANT3mI5YBgBdAxHABD64CzAI9NY+fdo0C9A
+  TChukQP7KmLeDHNY+0JIipzSKlWo3wpdweffBIkeZ1b7/2eFKB5GJPx0ksm7hH9a
+  uTmONpu/0cjIxoEymXE0d9BZaKvhF4tsdpJeVThU6+OsIaXqRlQnwWCuJYICz703
+  9kM1SfFgtNmki9QE7gJhiSCV5IWi2pusVbHQWNXZKEYU1TnbwoFkSlp9Sq0KZi+w
+  XT46Tf9L30fraO8PljDROGnbSBsAY5AFze0Y3WhTWIbPk3gcVk4TMXVM0BekGeQZ
+  WBHW1m+7b0snBIprNLMyZMC2j79mxq0xK8oEBJamg6sybJp8QUvCbjQwkOTdXvmt
+  JEoAQgc21D9cl81FKWj0qJMTusIsIPTjjawGVEoY+7A82/G5m1ZX/Im0FVH9pLLv
+  U3hb9z8RkfmfpCN4k7FhiUU02JoJp5CgmtUVi08f/vV4rSFpdQkAxhULaiYrW1/D
+  d7rJjCAde/UMX4uNZ7zRwAm9wEHhEQurWoYNygfnBnOhx0qxAGD1z9dEkq3Go12Z
+  UiysQrU5w2d8s4F7XukqQhfTxHCsSwV4krz1oDkYUOaSP/nq9qlu8zERwH6F2lwp
+  7UtevEj6dsBb8Qask1UooZ6jqj29s0LbMxUljmgDAgMBAAGjRTBDMA4GA1UdDwEB
+  /wQEAwIBBjASBgNVHRMBAf8ECDAGAQH/AgEBMB0GA1UdDgQWBBSimuHkGDceMsmV
+  eXsomgrmvZtaADANBgkqhkiG9w0BAQsFAAOCAgEAjRaqjVUZmZX3avSqfHz8w+h/
+  C5bh2kdeqnpXNcSFmq7RK+ZtdXEDlW8szbMqoAdMQX30VjOUQbHusZ8ZIGlPdPpu
+  ZKIve3ZWbn0Wo6UU5LdkfVkk5rExCP4e1P+ipE+4xCfDa++8P77Tk6vYP8X7AmCY
+  EUVUK1X+EYxNWPjKKFBsANLOtIiOYwRa06mjWnH9ZNZYQe97S3joZvop0iVyFZ2z
+  vOFbw9nBwlH169ZxesFgA4KN4UHOFwvecYcLhY7bUtTgrgoGJO+ZlHRY8H69qpXe
+  loykVQS06Y3AyL0ImH3Q/GSrMJ6TyVtWbboCLfaA+uTqUEfl5kOTrDVqDnzuwECw
+  4VLo7Fy+A1zgEtoTIXdRxG8RcSNOWDmU8HEpeceHzfWbTBLJz6HJPqbzsbwLzT00
+  HxV5cC5u5wYkVgOjn6oXn8p88WZU0YwszGE0DW8ifKnPESaAia0OFIQxeOPrqHb/
+  i33COxxLfXldmspMLoeBqd9WVnCFJdGNtRFCuxkdzPZAUfzEyk23z+0FHQ2+/7ED
+  Mdm2Z7fIubgIS4Fsi4EFZIq8Pa/0Ao4rxTnP5sedA3FZsbIQU1a+8DB7X+pWbG00
+  F2rm/ZntDBUgW8iTtS5+kf1MPDcnLkMfi1VaQAoh48tbZNjbotMI7HOvKtzIXc1W
+  /ZDrdUA5dFnubjhDzcU=
+  -----END CERTIFICATE-----
+
+identity:
+  issuer:
+    scheme: kubernetes.io/tls
+
+controllerReplicas: 3
+enablePodAntiAffinity: true
+
+controllerResources:
+  cpu:
+    request: 100m
+  memory:
+    request: 128Mi
+  limit:
+    cpu: 1000m
+    memory: 1Gi
+
+destinationResources:
+  cpu:
+    request: 100m
+  memory:
+    request: 128Mi
+  limit:
+    cpu: 1000m
+    memory: 512Mi
+
+proxy:
+  enableExternalProfiles: true
+  resources:
+    cpu:
+      request: 100m
+    memory:
+      request: 128Mi
+    limit:
+      cpu: 500m
+      memory: 256Mi
+
+proxyInjector:
+  externalSecret: false
+  resources:
+    cpu:
+      request: 100m
+    memory:
+      request: 128Mi
+    limit:
+      cpu: 500m
+      memory: 256Mi
+
+profileValidator:
+  externalSecret: false
+  resources:
+    cpu:
+      request: 100m
+    memory:
+      request: 128Mi
+    limit:
+      cpu: 500m
+      memory: 256Mi
+
+policyValidator:
+  externalSecret: false
+  resources:
+    cpu:
+      request: 100m
+    memory:
+      request: 128Mi
+    limit:
+      cpu: 500m
+      memory: 256Mi
+
+disableHeartBeat: false
