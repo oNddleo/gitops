@@ -48,6 +48,7 @@ spec:
   privateKey:
     algorithm: ECDSA
     size: 256
+    rotationPolicy: Always
   usages:
     - cert sign
     - crl sign

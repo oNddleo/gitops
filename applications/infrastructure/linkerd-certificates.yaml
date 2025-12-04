@@ -28,3 +28,10 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
+  ignoreDifferences:
+    - group: cert-manager.io
+      kind: Certificate
+      jsonPointers:
+        - /status
+        - /spec/duration
+        - /spec/renewBefore
