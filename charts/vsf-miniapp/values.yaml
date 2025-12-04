@@ -1,13 +1,23 @@
-# Default values for my-microservice
+# Default values for vsf-miniapp
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# ============================================================================
+# Service Identity (MUST be overridden in service-specific values)
+# ============================================================================
+serviceName: "default-service"  # Override this with actual service name (service-a, service-b, etc.)
+language: "generic"  # Override with: java, nodejs, python, golang, etc.
+runtime: ""  # Override with: openjdk-17, node-20, python-3.11, etc.
+
+# ============================================================================
+# Scaling Configuration
+# ============================================================================
 # Replica count
 replicaCount: 3
 
 # Image configuration
 image:
-  repository: YOUR_ECR_REGISTRY/my-microservice  # UPDATE THIS
+  repository: YOUR_ECR_REGISTRY/vsf-miniapp-default  # Override with service-specific repository
   pullPolicy: IfNotPresent
   tag: "latest"  # Overridden by CI/CD
 
@@ -122,13 +132,13 @@ affinity:
               - key: app.kubernetes.io/name
                 operator: In
                 values:
-                  - my-microservice
+                  - vsf-miniapp
           topologyKey: kubernetes.io/hostname
 
 # Environment variables
 env:
   - name: APP_NAME
-    value: "my-microservice"
+    value: "vsf-miniapp"
   - name: APP_VERSION
     value: "1.0.0"
   - name: LOG_LEVEL
@@ -139,16 +149,16 @@ env:
 # Environment variables from ConfigMap
 envFrom:
   - configMapRef:
-      name: my-microservice-config
+      name: vsf-miniapp-config
   - secretRef:
-      name: my-microservice-secrets
+      name: vsf-miniapp-secrets
 
 # ConfigMap data
 configMap:
   enabled: true
   data:
     app.properties: |
-      app.name=my-microservice
+      app.name=vsf-miniapp
       app.environment=production
       feature.flag.enabled=true
 
@@ -208,6 +218,15 @@ monitoring:
     interval: 30s
     path: /metrics
     port: metrics
+
+# External Secrets Operator (disabled - we use AWS Secrets Manager CSI Driver instead)
+externalSecrets:
+  enabled: false
+  refreshInterval: 1h
+  secretStore:
+    name: aws-secretsmanager
+    kind: SecretStore
+  data: []
 
 # Additional volumes
 volumes: []

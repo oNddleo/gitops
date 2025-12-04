@@ -1,10 +1,10 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "my-microservice.fullname" . }}
+  name: {{ include "vsf-miniapp.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "my-microservice.labels" . | nindent 4 }}
+    {{- include "vsf-miniapp.labels" . | nindent 4 }}
   annotations:
     {{- if .Values.podAnnotations }}
     {{- toYaml .Values.podAnnotations | nindent 4 }}
@@ -15,7 +15,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      {{- include "my-microservice.selectorLabels" . | nindent 6 }}
+      {{- include "vsf-miniapp.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
@@ -24,14 +24,14 @@ spec:
         {{- end }}
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
       labels:
-        {{- include "my-microservice.selectorLabels" . | nindent 8 }}
+        {{- include "vsf-miniapp.selectorLabels" . | nindent 8 }}
         version: {{ .Values.image.tag | default .Chart.AppVersion | quote }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "my-microservice.serviceAccountName" . }}
+      serviceAccountName: {{ include "vsf-miniapp.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -86,7 +86,7 @@ spec:
         {{- if .Values.persistence.enabled }}
         - name: data
           persistentVolumeClaim:
-            claimName: {{ include "my-microservice.fullname" . }}
+            claimName: {{ include "vsf-miniapp.fullname" . }}
         {{- end }}
         {{- if .Values.secretsManager.enabled }}
         - name: secrets-store
@@ -94,7 +94,7 @@ spec:
             driver: secrets-store.csi.k8s.io
             readOnly: true
             volumeAttributes:
-              secretProviderClass: {{ include "my-microservice.fullname" . }}-secrets
+              secretProviderClass: {{ include "vsf-miniapp.fullname" . }}-secrets
         {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}

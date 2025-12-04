@@ -1,0 +1,193 @@
+# Service B - Production Environment
+# Node.js Express Application
+
+serviceName: service-b
+language: nodejs
+runtime: node-20
+
+image:
+  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-b
+  tag: "1.0.0"  # Updated by CI/CD
+  pullPolicy: IfNotPresent
+
+replicaCount: 3
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 15
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 80
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+env:
+  - name: APP_NAME
+    value: "service-b"
+  - name: NODE_ENV
+    value: "production"
+  - name: PORT
+    value: "3000"
+  - name: LOG_LEVEL
+    value: "info"
+  - name: NODE_OPTIONS
+    value: "--max-old-space-size=400 --enable-source-maps"
+  - name: TRUST_PROXY
+    value: "true"
+
+envFrom:
+  - configMapRef:
+      name: service-b-config
+  - secretRef:
+      name: service-b-secrets
+
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 3000
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+podAnnotations:
+  linkerd.io/inject: enabled
+  config.linkerd.io/skip-outbound-ports: "27017,6379"
+  reloader.stakater.com/auto: "true"
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3000"
+  prometheus.io/path: "/metrics"
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-b-production-secrets-reader"
+  name: "service-b"
+
+secretsManager:
+  enabled: true
+  region: us-east-1
+  mountPath: /mnt/secrets
+  objects:
+    - objectName: "production/vsf-miniapp/service-b/mongodb"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: connectionString
+          objectAlias: mongodb-uri
+        - path: database
+          objectAlias: mongodb-database
+    - objectName: "production/vsf-miniapp/service-b/redis"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: host
+          objectAlias: redis-host
+        - path: port
+          objectAlias: redis-port
+        - path: password
+          objectAlias: redis-password
+    - objectName: "production/vsf-miniapp/service-b/jwt"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: secret
+          objectAlias: jwt-secret
+  syncToKubernetesSecret: true
+  secretData:
+    - objectName: mongodb-uri
+      key: MONGODB_URI
+    - objectName: mongodb-database
+      key: MONGODB_DATABASE
+    - objectName: redis-host
+      key: REDIS_HOST
+    - objectName: redis-port
+      key: REDIS_PORT
+    - objectName: redis-password
+      key: REDIS_PASSWORD
+    - objectName: jwt-secret
+      key: JWT_SECRET
+
+configMap:
+  enabled: true
+  data:
+    config.json: |
+      {
+        "server": {
+          "port": 3000,
+          "host": "0.0.0.0"
+        },
+        "logging": {
+          "level": "info",
+          "format": "json"
+        },
+        "cors": {
+          "enabled": true,
+          "origins": ["https://vsf-miniapp.com"]
+        },
+        "rateLimit": {
+          "windowMs": 900000,
+          "max": 100
+        }
+      }
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: production-rate-limit@kubernetescrd
+  hosts:
+    - host: service-b.vsf-miniapp.com
+      paths:
+        - path: /api/v1/service-b
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: vsf-miniapp-production-tls
+
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+    port: http
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: service
+                operator: In
+                values:
+                  - service-b
+          topologyKey: kubernetes.io/hostname
+      - weight: 90
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: service
+                operator: In
+                values:
+                  - service-b
+          topologyKey: topology.kubernetes.io/zone

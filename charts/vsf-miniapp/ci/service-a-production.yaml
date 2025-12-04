@@ -1,0 +1,194 @@
+# Service A - Production Environment
+# Java Spring Boot Application
+
+serviceName: service-a
+language: java
+runtime: openjdk-17
+
+image:
+  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-a
+  tag: "1.0.0"  # Updated by CI/CD
+  pullPolicy: IfNotPresent
+
+replicaCount: 5
+
+autoscaling:
+  enabled: true
+  minReplicas: 5
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+env:
+  - name: APP_NAME
+    value: "service-a"
+  - name: SPRING_PROFILES_ACTIVE
+    value: "production"
+  - name: SERVER_PORT
+    value: "8080"
+  - name: MANAGEMENT_SERVER_PORT
+    value: "8081"
+  - name: LOG_LEVEL
+    value: "info"
+  - name: JAVA_OPTS
+    value: "-Xmx768m -Xms512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+  - name: ENABLE_METRICS
+    value: "true"
+
+envFrom:
+  - configMapRef:
+      name: service-a-config
+  - secretRef:
+      name: service-a-secrets
+
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8081
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8081
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+podAnnotations:
+  linkerd.io/inject: enabled
+  config.linkerd.io/skip-outbound-ports: "5432,3306,9092"
+  reloader.stakater.com/auto: "true"
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8081"
+  prometheus.io/path: "/actuator/prometheus"
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-a-production-secrets-reader"
+  name: "service-a"
+
+secretsManager:
+  enabled: true
+  region: us-east-1
+  mountPath: /mnt/secrets
+  objects:
+    - objectName: "production/vsf-miniapp/service-a/database"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: url
+          objectAlias: database-url
+        - path: username
+          objectAlias: database-username
+        - path: password
+          objectAlias: database-password
+        - path: maxPoolSize
+          objectAlias: database-max-pool-size
+    - objectName: "production/vsf-miniapp/service-a/kafka"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: brokers
+          objectAlias: kafka-brokers
+        - path: username
+          objectAlias: kafka-username
+        - path: password
+          objectAlias: kafka-password
+  syncToKubernetesSecret: true
+  secretData:
+    - objectName: database-url
+      key: DATABASE_URL
+    - objectName: database-username
+      key: DATABASE_USERNAME
+    - objectName: database-password
+      key: DATABASE_PASSWORD
+    - objectName: database-max-pool-size
+      key: DATABASE_MAX_POOL_SIZE
+    - objectName: kafka-brokers
+      key: KAFKA_BROKERS
+    - objectName: kafka-username
+      key: KAFKA_USERNAME
+    - objectName: kafka-password
+      key: KAFKA_PASSWORD
+
+configMap:
+  enabled: true
+  data:
+    application.properties: |
+      server.port=8080
+      management.server.port=8081
+      spring.application.name=service-a
+      spring.profiles.active=production
+      management.endpoints.web.exposure.include=health,info,prometheus,metrics
+      management.endpoint.health.probes.enabled=true
+
+      # Logging
+      logging.level.root=INFO
+      logging.level.com.vsf.miniapp.servicea=INFO
+
+      # Database Connection Pool
+      spring.datasource.hikari.minimum-idle=5
+      spring.datasource.hikari.maximum-pool-size=${DATABASE_MAX_POOL_SIZE}
+      spring.datasource.hikari.idle-timeout=300000
+      spring.datasource.hikari.connection-timeout=20000
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: production-rate-limit@kubernetescrd
+  hosts:
+    - host: service-a.vsf-miniapp.com
+      paths:
+        - path: /api/v1/service-a
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: vsf-miniapp-production-tls
+
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /actuator/prometheus
+    port: metrics
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: service
+                operator: In
+                values:
+                  - service-a
+          topologyKey: kubernetes.io/hostname
+      - weight: 90
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: service
+                operator: In
+                values:
+                  - service-a
+          topologyKey: topology.kubernetes.io/zone

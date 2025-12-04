@@ -1,0 +1,144 @@
+# Service B - Staging Environment
+# Node.js Express Application
+
+serviceName: service-b
+language: nodejs
+runtime: node-20
+
+image:
+  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-b
+  tag: "staging"
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 75
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+env:
+  - name: APP_NAME
+    value: "service-b"
+  - name: NODE_ENV
+    value: "staging"
+  - name: PORT
+    value: "3000"
+  - name: LOG_LEVEL
+    value: "info"
+  - name: NODE_OPTIONS
+    value: "--max-old-space-size=400"
+
+envFrom:
+  - configMapRef:
+      name: service-b-config
+  - secretRef:
+      name: service-b-secrets
+
+livenessProbe:
+  httpGet:
+    path: /health/live
+    port: 3000
+  initialDelaySeconds: 15
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /health/ready
+    port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+podAnnotations:
+  linkerd.io/inject: enabled
+  config.linkerd.io/skip-outbound-ports: "27017,6379"
+  reloader.stakater.com/auto: "true"
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-b-staging-secrets-reader"
+  name: "service-b"
+
+secretsManager:
+  enabled: true
+  region: us-east-1
+  mountPath: /mnt/secrets
+  objects:
+    - objectName: "staging/vsf-miniapp/service-b/mongodb"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: connectionString
+          objectAlias: mongodb-uri
+        - path: database
+          objectAlias: mongodb-database
+    - objectName: "staging/vsf-miniapp/service-b/redis"
+      objectType: "secretsmanager"
+      jmesPath:
+        - path: host
+          objectAlias: redis-host
+        - path: password
+          objectAlias: redis-password
+  syncToKubernetesSecret: true
+  secretData:
+    - objectName: mongodb-uri
+      key: MONGODB_URI
+    - objectName: mongodb-database
+      key: MONGODB_DATABASE
+    - objectName: redis-host
+      key: REDIS_HOST
+    - objectName: redis-password
+      key: REDIS_PASSWORD
+
+configMap:
+  enabled: true
+  data:
+    config.json: |
+      {
+        "server": {
+          "port": 3000,
+          "host": "0.0.0.0"
+        },
+        "logging": {
+          "level": "info",
+          "format": "json"
+        },
+        "cors": {
+          "enabled": true,
+          "origins": ["https://staging.vsf-miniapp.com"]
+        }
+      }
+
+ingress:
+  enabled: true
+  className: traefik
+  hosts:
+    - host: service-b-staging.vsf-miniapp.com
+      paths:
+        - path: /api/v1/service-b
+          pathType: Prefix
+  tls:
+    enabled: true
+    secretName: vsf-miniapp-staging-tls
+
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+    port: http

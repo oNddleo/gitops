@@ -2,10 +2,10 @@
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: {{ include "my-microservice.fullname" . }}
+  name: {{ include "vsf-miniapp.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "my-microservice.labels" . | nindent 4 }}
+    {{- include "vsf-miniapp.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -22,7 +22,7 @@ spec:
     - match: Host(`{{ .host }}`){{ range .paths }} && PathPrefix(`{{ .path }}`){{ end }}
       kind: Rule
       services:
-        - name: {{ include "my-microservice.fullname" $ }}
+        - name: {{ include "vsf-miniapp.fullname" $ }}
           port: {{ $.Values.service.port }}
       middlewares:
         - name: default-headers
@@ -40,10 +40,10 @@ spec:
 apiVersion: traefik.containo.us/v1alpha1
 kind: IngressRoute
 metadata:
-  name: {{ include "my-microservice.fullname" . }}-redirect
+  name: {{ include "vsf-miniapp.fullname" . }}-redirect
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "my-microservice.labels" . | nindent 4 }}
+    {{- include "vsf-miniapp.labels" . | nindent 4 }}
 spec:
   entryPoints:
     - web
@@ -52,7 +52,7 @@ spec:
     - match: Host(`{{ .host }}`)
       kind: Rule
       services:
-        - name: {{ include "my-microservice.fullname" $ }}
+        - name: {{ include "vsf-miniapp.fullname" $ }}
           port: {{ $.Values.service.port }}
       middlewares:
         - name: https-redirect

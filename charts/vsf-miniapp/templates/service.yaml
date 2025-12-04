@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "my-microservice.fullname" . }}
+  name: {{ include "vsf-miniapp.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "my-microservice.labels" . | nindent 4 }}
+    {{- include "vsf-miniapp.labels" . | nindent 4 }}
   {{- with .Values.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -23,4 +23,4 @@ spec:
       name: metrics
     {{- end }}
   selector:
-    {{- include "my-microservice.selectorLabels" . | nindent 4 }}
+    {{- include "vsf-miniapp.selectorLabels" . | nindent 4 }}
