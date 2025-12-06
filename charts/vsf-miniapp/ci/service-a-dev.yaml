@@ -12,7 +12,7 @@ runtime: openjdk-17
 # Container Image
 # ============================================================================
 image:
-  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-a
+  repository: /vsf-miniapp-service-a
   tag: "latest"  # Dev uses latest
   pullPolicy: Always  # Always pull in dev
 
@@ -97,7 +97,7 @@ podAnnotations:
 # ============================================================================
 serviceAccount:
   annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-a-dev-secrets-reader"
+    eks.amazonaws.com/role-arn: "arn:aws:iam:::role/vsf-miniapp-service-a-dev-secrets-reader"
   name: "service-a"
 
 # ============================================================================

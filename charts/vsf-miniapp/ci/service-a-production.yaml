@@ -6,7 +6,7 @@ language: java
 runtime: openjdk-17
 
 image:
-  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-a
+  repository: /vsf-miniapp-service-a
   tag: "1.0.0"  # Updated by CI/CD
   pullPolicy: IfNotPresent
 
@@ -80,7 +80,7 @@ podAnnotations:
 
 serviceAccount:
   annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-a-production-secrets-reader"
+    eks.amazonaws.com/role-arn: "arn:aws:iam:::role/vsf-miniapp-service-a-production-secrets-reader"
   name: "service-a"
 
 secretsManager:

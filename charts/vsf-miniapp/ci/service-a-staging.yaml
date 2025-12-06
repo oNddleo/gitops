@@ -5,7 +5,7 @@ language: java
 runtime: openjdk-17
 
 image:
-  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-a
+  repository: /vsf-miniapp-service-a
   tag: "staging"
   pullPolicy: IfNotPresent
 
@@ -67,7 +67,7 @@ podAnnotations:
 
 serviceAccount:
   annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-a-staging-secrets-reader"
+    eks.amazonaws.com/role-arn: "arn:aws:iam:::role/vsf-miniapp-service-a-staging-secrets-reader"
   name: "service-a"
 
 secretsManager:

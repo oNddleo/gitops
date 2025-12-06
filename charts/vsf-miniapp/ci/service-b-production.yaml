@@ -6,7 +6,7 @@ language: nodejs
 runtime: node-20
 
 image:
-  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-b
+  repository: /vsf-miniapp-service-b
   tag: "1.0.0"  # Updated by CI/CD
   pullPolicy: IfNotPresent
 
@@ -78,7 +78,7 @@ podAnnotations:
 
 serviceAccount:
   annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-b-production-secrets-reader"
+    eks.amazonaws.com/role-arn: "arn:aws:iam:::role/vsf-miniapp-service-b-production-secrets-reader"
   name: "service-b"
 
 secretsManager:

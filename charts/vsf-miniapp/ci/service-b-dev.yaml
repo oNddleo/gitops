@@ -12,7 +12,7 @@ runtime: node-20
 # Container Image
 # ============================================================================
 image:
-  repository: YOUR_ECR_REGISTRY/vsf-miniapp-service-b
+  repository: /vsf-miniapp-service-b
   tag: "latest"
   pullPolicy: Always
 
@@ -96,7 +96,7 @@ podAnnotations:
 # ============================================================================
 serviceAccount:
   annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::ACCOUNT_ID:role/vsf-miniapp-service-b-dev-secrets-reader"
+    eks.amazonaws.com/role-arn: "arn:aws:iam:::role/vsf-miniapp-service-b-dev-secrets-reader"
   name: "service-b"
 
 # ============================================================================
