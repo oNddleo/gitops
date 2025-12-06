@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K8s với AWS & API Gateway Architecture</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2d3748;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+        }
+        
+        .architecture {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        
+        /* AWS Cloud Layer */
+        .aws-cloud {
+            background: linear-gradient(135deg, #FF9900 0%, #FF6B00 100%);
+            border-radius: 15px;
+            padding: 30px;
+            position: relative;
+        }
+        
+        .aws-cloud::before {
+            content: 'AWS Cloud';
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            background: #FF9900;
+            padding: 5px 20px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        /* VPC Layer */
+        .vpc {
+            background: rgba(255, 255, 255, 0.95);
+            border: 3px dashed #4299e1;
+            border-radius: 15px;
+            padding: 25px;
+            position: relative;
+        }
+        
+        .vpc::before {
+            content: 'VPC';
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            background: #4299e1;
+            padding: 5px 20px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+        }
+        
+        /* Network Layer */
+        .network-layer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .subnet {
+            background: #f7fafc;
+            border: 2px solid #cbd5e0;
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .subnet-label {
+            position: absolute;
+            top: -12px;
+            left: 15px;
+            background: #48bb78;
+            color: white;
+            padding: 3px 15px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        
+        .subnet.private .subnet-label {
+            background: #ed8936;
+        }
+        
+        /* EKS Cluster */
+        .eks-cluster {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            border-radius: 15px;
+            padding: 25px;
+            color: white;
+            position: relative;
+        }
+        
+        .eks-cluster::before {
+            content: 'EKS Cluster';
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            background: #3182ce;
+            padding: 5px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+        
+        /* Gateway API Components */
+        .gateway-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .component {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            position: relative;
+        }
+        
+        .component:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+        }
+        
+        .component-icon {
+            width: 50px;
+            height: 50px;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 1.5em;
+        }
+        
+        .gateway .component-icon {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+        
+        .httproute .component-icon {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+        }
+        
+        .service .component-icon {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+        }
+        
+        .component-title {
+            text-align: center;
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .component-desc {
+            text-align: center;
+            color: #718096;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        
+        /* Pods Section */
+        .pods-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .pod {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            color: white;
+            font-size: 0.9em;
+        }
+        
+        .pod-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        /* External Components */
+        .external-section {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .external-component {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        
+        .external-component-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        /* Traffic Flow */
+        .flow-arrow {
+            text-align: center;
+            font-size: 2em;
+            color: #4299e1;
+            margin: 10px 0;
+        }
+        
+        /* Legend */
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+        }
+        
+        .legend-text {
+            color: #4a5568;
+            font-size: 0.9em;
+        }
+        
+        /* Info boxes */
+        .info-box {
+            background: #e6fffa;
+            border-left: 4px solid #38b2ac;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        
+        .info-box h3 {
+            color: #2c7a7b;
+            margin-bottom: 10px;
+        }
+        
+        .info-box ul {
+            margin-left: 20px;
+            color: #234e52;
+        }
+        
+        .info-box li {
+            margin: 5px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .gateway-section,
+            .network-layer,
+            .external-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ Kiến trúc K8s trên AWS với API Gateway & HTTPRoute</h1>
+        
+        <div class="architecture">
+            <!-- Client Layer -->
+            <div class="external-section">
+                <div class="external-component">
+                    <div class="external-component-icon">🌐</div>
+                    <div>Internet / Clients</div>
+                </div>
+            </div>
+            
+            <div class="flow-arrow">⬇️</div>
+            
+            <!-- AWS Cloud -->
+            <div class="aws-cloud">
+                <!-- VPC -->
+                <div class="vpc">
+                    <!-- Network Layer -->
+                    <div class="network-layer">
+                        <div class="subnet">
+                            <div class="subnet-label">Public Subnet</div>
+                            <div style="text-align: center; padding: 20px;">
+                                <div style="background: #667eea; color: white; padding: 15px; border-radius: 10px; margin-bottom: 10px;">
+                                    <strong>🔌 Network Load Balancer (NLB)</strong>
+                                    <div style="font-size: 0.85em; margin-top: 5px;">hoặc Application Load Balancer (ALB)</div>
+                                </div>
+                                <div style="background: #48bb78; color: white; padding: 10px; border-radius: 8px;">
+                                    <strong>🌍 Internet Gateway</strong>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="subnet private">
+                            <div class="subnet-label">Private Subnet</div>
+                            <div style="text-align: center; padding: 20px;">
+                                <div style="background: #ed8936; color: white; padding: 15px; border-radius: 10px;">
+                                    <strong>🔄 NAT Gateway</strong>
+                                    <div style="font-size: 0.85em; margin-top: 5px;">Cho outbound traffic</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flow-arrow">⬇️</div>
+                    
+                    <!-- EKS Cluster -->
+                    <div class="eks-cluster">
+                        <!-- Gateway API Layer -->
+                        <div class="gateway-section">
+                            <div class="component gateway">
+                                <div class="component-icon">🚪</div>
+                                <div class="component-title">Gateway</div>
+                                <div class="component-desc">
+                                    Entry point cho traffic<br>
+                                    <code style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px;">
+                                    kind: Gateway
+                                    </code>
+                                </div>
+                            </div>
+                            
+                            <div class="component httproute">
+                                <div class="component-icon">🛣️</div>
+                                <div class="component-title">HTTPRoute</div>
+                                <div class="component-desc">
+                                    Routing rules cho HTTP traffic<br>
+                                    <code style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px;">
+                                    kind: HTTPRoute
+                                    </code>
+                                </div>
+                            </div>
+                            
+                            <div class="component service">
+                                <div class="component-icon">⚙️</div>
+                                <div class="component-title">Service</div>
+                                <div class="component-desc">
+                                    Load balancing đến Pods<br>
+                                    <code style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px;">
+                                    kind: Service
+                                    </code>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flow-arrow">⬇️</div>
+                        
+                        <!-- Pods -->
+                        <div class="pods-section">
+                            <div class="pod">
+                                <div class="pod-icon">📦</div>
+                                <div>Pod 1</div>
+                                <div style="font-size: 0.8em; margin-top: 5px;">app: backend</div>
+                            </div>
+                            <div class="pod">
+                                <div class="pod-icon">📦</div>
+                                <div>Pod 2</div>
+                                <div style="font-size: 0.8em; margin-top: 5px;">app: backend</div>
+                            </div>
+                            <div class="pod">
+                                <div class="pod-icon">📦</div>
+                                <div>Pod 3</div>
+                                <div style="font-size: 0.8em; margin-top: 5px;">app: backend</div>
+                            </div>
+                            <div class="pod">
+                                <div class="pod-icon">📦</div>
+                                <div>Pod 4</div>
+                                <div style="font-size: 0.8em; margin-top: 5px;">app: api</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- External Services -->
+            <div class="flow-arrow">⬇️ ⬆️</div>
+            
+            <div class="external-section">
+                <div class="external-component" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="external-component-icon">🗄️</div>
+                    <div>RDS Database</div>
+                </div>
+                <div class="external-component" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <div class="external-component-icon">💾</div>
+                    <div>S3 Storage</div>
+                </div>
+                <div class="external-component" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                    <div class="external-component-icon">🔐</div>
+                    <div>IAM / Secrets Manager</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Legend -->
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: linear-gradient(135deg, #667eea, #764ba2);"></div>
+                <span class="legend-text">Gateway API</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #2d3748;"></div>
+                <span class="legend-text">EKS Cluster</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #48bb78;"></div>
+                <span class="legend-text">Public Network</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ed8936;"></div>
+                <span class="legend-text">Private Network</span>
+            </div>
+        </div>
+        
+        <!-- Info Boxes -->
+        <div class="info-box">
+            <h3>🎯 Các thành phần chính:</h3>
+            <ul>
+                <li><strong>Gateway:</strong> Điểm entry cho traffic, thường được expose qua AWS Load Balancer</li>
+                <li><strong>HTTPRoute:</strong> Định nghĩa routing rules (path-based, header-based, method-based routing)</li>
+                <li><strong>Service:</strong> Kubernetes service để load balance traffic đến pods</li>
+                <li><strong>Pods:</strong> Application containers chạy workload thực sự</li>
+            </ul>
+        </div>
+        
+        <div class="info-box" style="background: #fef5e7; border-left-color: #f39c12;">
+            <h3>⚡ Traffic Flow:</h3>
+            <ul>
+                <li><strong>1.</strong> Client gửi request qua Internet</li>
+                <li><strong>2.</strong> Request đến AWS Load Balancer (NLB/ALB) trong Public Subnet</li>
+                <li><strong>3.</strong> Load Balancer forward đến Gateway trong EKS cluster</li>
+                <li><strong>4.</strong> Gateway áp dụng HTTPRoute rules để route traffic</li>
+                <li><strong>5.</strong> HTTPRoute forward đến đúng Service dựa trên rules</li>
+                <li><strong>6.</strong> Service load balance đến các Pods</li>
+                <li><strong>7.</strong> Pod xử lý request và trả response ngược lại</li>
+            </ul>
+        </div>
+        
+        <div class="info-box" style="background: #ebf5fb; border-left-color: #3498db;">
+            <h3>🔧 Implementation Options:</h3>
+            <ul>
+                <li><strong>AWS Load Balancer Controller:</strong> Tự động tạo ALB/NLB khi tạo Gateway</li>
+                <li><strong>Gateway API Controllers:</strong> Kong, Istio, Envoy Gateway, AWS VPC Lattice</li>
+                <li><strong>Service Mesh Integration:</strong> Kết hợp với Istio hoặc Linkerd cho advanced features</li>
+                <li><strong>Observability:</strong> CloudWatch, Prometheus, Grafana, X-Ray cho monitoring & tracing</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
