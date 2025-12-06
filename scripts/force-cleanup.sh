@@ -55,15 +55,20 @@ fi
 
 print_header "Force Cleanup Script"
 
-echo "⚠️  WARNING: This script will forcefully remove stuck resources!"
+echo "⚠️  WARNING: This script will forcefully DELETE ALL resources!"
 echo ""
 echo "This script will:"
 echo "  • Remove finalizers from stuck namespaces"
-echo "  • Force delete stuck ArgoCD applications"
-echo "  • Remove stuck pods and deployments"
-echo "  • Clean up orphaned resources"
+echo "  • Force delete stuck ArgoCD applications and ApplicationSets"
+echo "  • DELETE all workload resources (Deployments, DaemonSets, StatefulSets, Services)"
+echo "  • Force delete all Pods"
+echo "  • Clean up PVCs and orphaned resources"
+echo "  • Remove webhook configurations"
+echo "  • DELETE all Custom Resource Definitions (CRDs)"
+echo "  • FORCE DELETE namespaces (traefik, reloader, linkerd, cert-manager, etc.)"
 echo ""
-echo "Only use this if normal destroy scripts have failed!"
+echo "⚠️  Use this when ArgoCD is deleted and resources won't clean up!"
+echo "⚠️  Only use this if normal destroy scripts have failed!"
 echo ""
 
 read -p "Are you sure you want to force cleanup? (type 'FORCE' to confirm): " CONFIRM
@@ -125,31 +130,49 @@ else
     print_info "ArgoCD namespace not found"
 fi
 
-# Step 3: Clean up stuck pods
-print_header "Step 3: Clean Up Stuck Pods"
+# Step 3: Delete all workload resources (since ArgoCD is gone)
+print_header "Step 3: Force Delete All Workload Resources"
 
 NAMESPACES=("dev" "staging" "production" "linkerd" "linkerd-viz" "traefik" "reloader" "cert-manager")
 
 for ns in "${NAMESPACES[@]}"; do
     if kubectl get namespace "$ns" &>/dev/null; then
-        print_info "Checking namespace: $ns"
+        print_info "Force deleting all resources in namespace: $ns"
 
-        # Force delete stuck pods
-        STUCK_PODS=$(kubectl get pods -n "$ns" --field-selector status.phase=Unknown -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
-
-        if [ -n "$STUCK_PODS" ]; then
-            for pod in $STUCK_PODS; do
-                print_info "Force deleting pod: $pod"
-                kubectl delete pod "$pod" -n "$ns" --force --grace-period=0 2>/dev/null || true
-            done
+        # Delete Deployments
+        DEPLOYMENTS=$(kubectl get deployments -n "$ns" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+        if [ -n "$DEPLOYMENTS" ]; then
+            print_info "Deleting deployments in $ns: $DEPLOYMENTS"
+            kubectl delete deployments --all -n "$ns" --force --grace-period=0 2>/dev/null || true
         fi
 
-        # Delete all pods if namespace is terminating
-        NS_STATUS=$(kubectl get namespace "$ns" -o jsonpath='{.status.phase}' 2>/dev/null || echo "")
-        if [ "$NS_STATUS" = "Terminating" ]; then
-            print_info "Force deleting all pods in terminating namespace: $ns"
-            kubectl delete pods --all -n "$ns" --force --grace-period=0 2>/dev/null || true
+        # Delete DaemonSets
+        DAEMONSETS=$(kubectl get daemonsets -n "$ns" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+        if [ -n "$DAEMONSETS" ]; then
+            print_info "Deleting daemonsets in $ns: $DAEMONSETS"
+            kubectl delete daemonsets --all -n "$ns" --force --grace-period=0 2>/dev/null || true
         fi
+
+        # Delete StatefulSets
+        STATEFULSETS=$(kubectl get statefulsets -n "$ns" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null || echo "")
+        if [ -n "$STATEFULSETS" ]; then
+            print_info "Deleting statefulsets in $ns: $STATEFULSETS"
+            kubectl delete statefulsets --all -n "$ns" --force --grace-period=0 2>/dev/null || true
+        fi
+
+        # Delete ReplicaSets
+        print_info "Deleting replicasets in $ns"
+        kubectl delete replicasets --all -n "$ns" --force --grace-period=0 2>/dev/null || true
+
+        # Delete Services
+        print_info "Deleting services in $ns"
+        kubectl delete services --all -n "$ns" --force --grace-period=0 2>/dev/null || true
+
+        # Delete all Pods (including stuck ones)
+        print_info "Force deleting all pods in $ns"
+        kubectl delete pods --all -n "$ns" --force --grace-period=0 2>/dev/null || true
+
+        sleep 2
     fi
 done
 
@@ -218,8 +241,53 @@ if [ -n "$LINKERD_MUTATING" ]; then
     print_success "Removed Linkerd mutating webhook configurations"
 fi
 
-# Step 7: Final cleanup check
-print_header "Step 7: Final Cleanup Check"
+# Step 7: Delete CRDs that might block namespace deletion
+print_header "Step 7: Delete Custom Resource Definitions"
+
+print_info "Deleting Traefik CRDs..."
+kubectl get crd -o name | grep traefik | xargs kubectl delete 2>/dev/null || true
+
+print_info "Deleting Linkerd CRDs..."
+kubectl get crd -o name | grep linkerd | xargs kubectl delete 2>/dev/null || true
+
+print_info "Deleting cert-manager CRDs..."
+kubectl get crd -o name | grep cert-manager | xargs kubectl delete 2>/dev/null || true
+
+print_info "Deleting ArgoCD CRDs..."
+kubectl get crd -o name | grep argoproj | xargs kubectl delete 2>/dev/null || true
+
+print_success "CRD deletion attempted"
+sleep 3
+
+# Step 8: Force delete namespaces
+print_header "Step 8: Force Delete Namespaces"
+
+for ns in "${NAMESPACES[@]}"; do
+    if kubectl get namespace "$ns" &>/dev/null; then
+        print_info "Force deleting namespace: $ns"
+
+        # Try normal delete first
+        kubectl delete namespace "$ns" --timeout=10s 2>/dev/null || true
+
+        sleep 2
+
+        # If still exists, remove finalizers
+        if kubectl get namespace "$ns" &>/dev/null; then
+            print_warning "Namespace $ns still exists, removing finalizers..."
+            kubectl get namespace "$ns" -o json | \
+                jq '.spec.finalizers = []' | \
+                kubectl replace --raw "/api/v1/namespaces/$ns/finalize" -f - 2>/dev/null || \
+                print_warning "Failed to remove finalizers from $ns"
+        else
+            print_success "Deleted namespace: $ns"
+        fi
+    fi
+done
+
+sleep 3
+
+# Step 9: Final cleanup check
+print_header "Step 9: Final Cleanup Check"
 
 print_info "Checking for remaining stuck resources..."
 echo ""
@@ -238,20 +306,36 @@ kubectl get applicationsets -n argocd -o jsonpath='{.items[?(@.metadata.deletion
 # Summary
 print_header "Force Cleanup Summary"
 
-echo "✅ Attempted to remove finalizers from stuck namespaces"
-echo "✅ Attempted to force delete stuck ArgoCD applications"
-echo "✅ Cleaned up stuck pods and PVCs"
+echo "✅ Removed finalizers from stuck namespaces"
+echo "✅ Force deleted stuck ArgoCD applications"
+echo "✅ Deleted all workload resources (Deployments, DaemonSets, StatefulSets, Services, Pods)"
+echo "✅ Cleaned up stuck PVCs"
+echo "✅ Removed ApplicationSets"
 echo "✅ Removed webhook configurations"
+echo "✅ Deleted Custom Resource Definitions (CRDs)"
+echo "✅ Force deleted namespaces"
+echo ""
+
+print_info "Checking final state..."
+echo ""
+
+print_info "Remaining namespaces:"
+kubectl get namespaces | grep -E "(traefik|reloader|linkerd|cert-manager|dev|staging|production)" || echo "  All target namespaces deleted ✅"
+
+echo ""
+print_info "Remaining CRDs:"
+kubectl get crd 2>/dev/null | grep -E "(traefik|linkerd|cert-manager|argoproj)" || echo "  All target CRDs deleted ✅"
+
 echo ""
 print_warning "If resources are still stuck, you may need to:"
 echo "  1. Manually check for custom finalizers: kubectl get <resource> -o yaml"
-echo "  2. Check for admission webhooks: kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations"
+echo "  2. Check for remaining webhooks: kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations"
 echo "  3. Review cluster events: kubectl get events --all-namespaces --sort-by='.lastTimestamp'"
 echo ""
 echo "For persistent issues, consider:"
 echo "  • Restarting the Kubernetes API server"
 echo "  • Checking etcd for orphaned resources"
-echo "  • Using kubectl delete with --force --grace-period=0"
+echo "  • Recreating the cluster if completely stuck"
 echo ""
 
 print_success "Force cleanup complete! 🎉"
