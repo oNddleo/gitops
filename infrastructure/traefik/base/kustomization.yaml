@@ -5,7 +5,14 @@ namespace: traefik
 
 resources:
   - namespace.yaml
+  # Gateway API resources
+  - gatewayclass.yaml
+  - gateway.yaml
+  - referencegrant.yaml
+  # Dashboard resources
   - dashboard-certificate.yaml
-  - dashboard-ingressroute.yaml
+  - dashboard-httproute.yaml
+  # Middleware resources (still used via extensionRef in HTTPRoutes)
   - dashboard-middleware.yaml
   - default-headers-middleware.yaml
+  - rate-limit-middleware.yaml

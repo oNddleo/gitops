@@ -1,0 +1,38 @@
+---
+# HTTPS HTTPRoute for Linkerd Viz Dashboard
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: linkerd-viz-dashboard
+  namespace: linkerd-viz
+  labels:
+    app: linkerd-viz
+spec:
+  parentRefs:
+    - name: traefik-gateway
+      namespace: traefik
+      sectionName: https
+  hostnames:
+    - "linkerd.example.com"  # UPDATE THIS
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      filters:
+        # Reference Linkerd auth middleware
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: linkerd-auth
+        # Reference Linkerd IP whitelist middleware
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: linkerd-ipwhitelist
+      backendRefs:
+        - name: web
+          port: 8084
+          weight: 1

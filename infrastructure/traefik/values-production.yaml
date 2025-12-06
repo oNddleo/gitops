@@ -14,6 +14,8 @@ providers:
     enabled: true
     allowCrossNamespace: true
     allowExternalNameServices: true
+  kubernetesGateway:
+    enabled: true
 
 ports:
   web:
@@ -21,6 +23,15 @@ ports:
     exposedPort: 80
     expose:
       default: true
+  websecure:
+    port: 443
+    exposedPort: 443
+    expose:
+      default: true
+    http3:
+      enabled: false
+    tls:
+      enabled: true
 
 logs:
   general:
@@ -34,8 +45,9 @@ metrics:
 
 additionalArguments:
   - "--api.insecure=true"
-  - "--providers.kubernetescrd"
-  - "--providers.kubernetesingress"
+  - "--providers.kubernetescrd"  # Required for Traefik Middleware CRDs
+  - "--providers.kubernetesgateway"
+  - "--experimental.kubernetesgateway"
 
 resources:
   requests:

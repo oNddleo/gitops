@@ -5,6 +5,6 @@ namespace: argocd
 
 resources:
   - namespace.yaml
-  # - argocd-ingress.yaml
+  - argocd-httproute.yaml
   - repository-config.yaml
   - helm-repositories.yaml
